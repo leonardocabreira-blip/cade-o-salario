@@ -625,25 +625,43 @@ function handleFileSelect(input) {
 function parseCSV(text) {
   const lines = text.split('\n').filter(l=>l.trim());
   const results = [];
-  // Try to detect header and parse common bank CSV formats
   const header = lines[0].toLowerCase();
-  const hasDt = header.includes('data') || header.includes('date');
+  const hasDt  = header.includes('data') || header.includes('date');
   const start  = hasDt ? 1 : 0;
+  // Detect our own format: data;descricao;valor;categoria;cartao
+  const isOurFormat = header.includes('descricao') && header.includes('categoria');
+
   for (let i = start; i < lines.length; i++) {
-    const cols = lines[i].split(/[;,]/).map(c=>c.trim().replace(/^"|"$/g,''));
+    const sep  = lines[i].includes(';') ? ';' : ',';
+    const cols  = lines[i].split(sep).map(c=>c.trim().replace(/^"|"$/g,''));
     if (cols.length < 2) continue;
-    // Try to find date, desc, value columns
+
+    if (isOurFormat) {
+      // data;descricao;valor;categoria
+      const date = cols[0];
+      const desc = cols[1];
+      const rawVal = parseFloat(cols[2].replace(',','.'));
+      const cat  = cols[3] || null;
+      if (desc && !isNaN(rawVal) && rawVal !== 0) {
+        // In our CSV negatives are despesas
+        results.push({ date, desc, val: rawVal, suggestedCat: cat });
+      }
+      continue;
+    }
+
+    // Generic bank CSV detection
     let date='', desc='', val=0;
     for (let j=0;j<cols.length;j++) {
-      if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(cols[j])) {
-        const p = cols[j].split(/[\/\-]/);
+      const c = cols[j];
+      if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(c)) {
+        const p = c.split(/[\/\-]/);
         date = p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');
-      } else if (/^\d{4}-\d{2}-\d{2}$/.test(cols[j])) {
-        date = cols[j];
-      } else if (!isNaN(parseFloat(cols[j].replace(',','.')))) {
-        val = parseFloat(cols[j].replace(',','.'));
-      } else if (cols[j].length > 3 && !desc) {
-        desc = cols[j];
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(c)) {
+        date = c;
+      } else if (c && !isNaN(parseFloat(c.replace(',','.')))) {
+        val = parseFloat(c.replace(',','.'));
+      } else if (c.length > 3 && !desc) {
+        desc = c;
       }
     }
     if (desc && val !== 0) results.push({ date: date || new Date().toISOString().slice(0,10), desc, val });
@@ -681,7 +699,7 @@ function generateDemoImport() {
 function showImportPreview(parsed) {
   // Detect duplicates
   const enriched = parsed.map(t => {
-    const cat = suggestCategory(t.desc) || 'Outros';
+    const cat = t.suggestedCat || suggestCategory(t.desc) || 'Outros';
     const isDup = state.transactions.some(ex =>
       ex.date === t.date &&
       Math.abs(ex.val - t.val) < 0.01 &&
@@ -1011,11 +1029,17 @@ function showToast(msg) {
 }
 
 // ─── SWIPE ─────────────────────────────────────────────────────────────────
-let touchStartX = 0;
-document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive:true});
+let touchStartX = 0, touchStartY = 0;
+document.addEventListener('touchstart', e => {
+  touchStartX = e.changedTouches[0].screenX;
+  touchStartY = e.changedTouches[0].screenY;
+}, {passive:true});
 document.addEventListener('touchend', e => {
   const dx = e.changedTouches[0].screenX - touchStartX;
-  if (Math.abs(dx) < 50) return;
+  const dy = e.changedTouches[0].screenY - touchStartY;
+  // Only trigger if horizontal movement is dominant and > 60px
+  if (Math.abs(dx) < 60) return;
+  if (Math.abs(dy) > Math.abs(dx) * 0.6) return; // mostly vertical = scroll
   const active = document.querySelector('.screen.active');
   if (!active) return;
   if (active.id === 'screen-home')   changeMonth(dx < 0 ? 1 : -1);
