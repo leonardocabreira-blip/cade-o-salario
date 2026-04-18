@@ -238,7 +238,10 @@
     </div>
     <div class="swipe-hint">deslize para mudar o mês</div>
     <div class="metric-grid" id="home-metrics"></div>
-    <div class="section-title">Últimas transações</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div class="section-title" style="margin-bottom:0;">Últimas transações</div>
+      <button id="ver-todos-btn" onclick="toggleVerTodos()" style="background:none;border:none;font-size:13px;color:var(--accent);font-family:'Sora',sans-serif;padding:0;cursor:pointer;">Ver todos</button>
+    </div>
     <div class="card" id="tx-list"><div style="text-align:center;padding:2rem;color:var(--text3);font-size:14px;">Nenhuma transação ainda.<br>Importe um extrato ou lance manualmente.</div></div>
   </div>
 
@@ -344,6 +347,18 @@
     <div class="card">
       <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Cadê o Salário? <span style="font-size:11px;color:var(--text3);font-weight:400;">v1.0</span></div>
       <div style="font-size:13px;color:var(--text3);line-height:1.6;">Controle financeiro pessoal com categorização automática por IA.<br><br>Seus dados ficam salvos no seu dispositivo.</div>
+    </div>
+  </div>
+
+  <!-- MODAL LISTA TRANSAÇÕES -->
+  <div class="modal-overlay" id="tx-modal" onclick="handleTxModalClick(event)">
+    <div class="modal-box" id="tx-modal-box">
+      <div class="modal-handle"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <div class="modal-title" id="tx-modal-title">Todas as transações</div>
+        <button onclick="closeTxModal()" style="background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer;">×</button>
+      </div>
+      <div id="tx-modal-list"></div>
     </div>
   </div>
 
@@ -514,13 +529,21 @@ function renderHome() {
     <div class="metric"><div class="metric-label">Receitas</div><div class="metric-value green">R$ ${fmtNum(income)}</div></div>
     <div class="metric"><div class="metric-label">Despesas</div><div class="metric-value red">R$ ${fmtNum(expense)}</div></div>
     <div class="metric full"><div class="metric-label">Saldo do mês</div><div class="metric-value ${balance>=0?'green':'red'}">R$ ${fmtNum(balance)}</div></div>`;
-  const recent = [...txs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+  const sorted = [...txs].sort((a,b)=>b.date.localeCompare(a.date));
   const list = document.getElementById('tx-list');
-  if (!recent.length) {
+  const btn  = document.getElementById('ver-todos-btn');
+  if (!sorted.length) {
     list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3);font-size:14px;">Nenhuma transação neste mês.</div>';
+    if (btn) btn.style.display = 'none';
     return;
   }
-  list.innerHTML = recent.map(t => txHtml(t)).join('');
+  state.showAllTx = state.showAllTx || false;
+  const toShow = state.showAllTx ? sorted : sorted.slice(0,8);
+  list.innerHTML = toShow.map(t => txHtml(t)).join('');
+  if (btn) {
+    btn.style.display = sorted.length > 8 ? 'block' : 'none';
+    btn.textContent = state.showAllTx ? 'Ver menos' : `Ver todos (${sorted.length})`;
+  }
 }
 
 function txHtml(t) {
@@ -806,11 +829,11 @@ function renderMonthlyReport() {
   document.getElementById('cat-breakdown').innerHTML = sorted.length
     ? sorted.map(([cat,val],i)=>{
         const pct = Math.round(val/total*100);
-        return `<div class="cat-row">
+        return `<div class="cat-row" style="cursor:pointer;" onclick="openCatDetail('${escHtml(cat)}',${state.reportMonth},${state.reportYear})">
           <div class="cat-dot" style="background:${CAT_COLORS[i%CAT_COLORS.length]}"></div>
           <div class="cat-name">${escHtml(cat)}</div>
           <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${CAT_COLORS[i%CAT_COLORS.length]}"></div></div>
-          <div class="cat-val">R$ ${fmtNum(val)}</div>
+          <div class="cat-val" style="display:flex;align-items:center;gap:6px;">R$ ${fmtNum(val)} <span style="font-size:12px;color:var(--text3);">›</span></div>
         </div>`;
       }).join('')
     : '<div style="text-align:center;padding:1.5rem;color:var(--text3);font-size:14px;">Nenhuma despesa neste mês.</div>';
@@ -1049,6 +1072,37 @@ document.addEventListener('touchend', e => {
     else changeReportMonth(dx < 0 ? 1 : -1);
   }
 }, {passive:true});
+
+// ─── VER TODOS / DRILL-DOWN ────────────────────────────────────────────────
+function toggleVerTodos() {
+  state.showAllTx = !state.showAllTx;
+  renderHome();
+}
+
+function openTxModal(title, txs) {
+  document.getElementById('tx-modal-title').textContent = title;
+  const el = document.getElementById('tx-modal-list');
+  if (!txs.length) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3);font-size:14px;">Nenhuma transação.</div>';
+  } else {
+    el.innerHTML = txs.sort((a,b)=>b.date.localeCompare(a.date)).map(t => txHtml(t)).join('');
+  }
+  document.getElementById('tx-modal').classList.add('open');
+}
+
+function openCatDetail(cat, month, year) {
+  const txs = getTxsForMonth(month, year).filter(t => t.cat === cat && t.val < 0);
+  const total = txs.reduce((s,t)=>s+Math.abs(t.val),0);
+  openTxModal(`${cat} — R$ ${fmtNum(total)}`, txs);
+}
+
+function closeTxModal() {
+  document.getElementById('tx-modal').classList.remove('open');
+}
+
+function handleTxModalClick(e) {
+  if (e.target === document.getElementById('tx-modal')) closeTxModal();
+}
 
 // ─── INIT ───────────────────────────────────────────────────────────────────
 load();
