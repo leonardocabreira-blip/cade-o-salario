@@ -36,7 +36,7 @@
     .auth-error{font-size:13px;color:var(--expense);background:var(--expense-bg);padding:8px 12px;border-radius:var(--r-xs);margin-bottom:12px;display:none;}
     /* APP */
     #app-screen{display:none;}#app-screen.active{display:block;}
-    #app{max-width:430px;margin:0 auto;padding:0 1rem 5rem;min-height:100dvh;}
+    #app{max-width:430px;margin:0 auto;padding:0 1rem 6rem;min-height:100dvh;}
     .screen{display:none;padding-top:1rem;}.screen.active{display:block;}
     /* TOPBAR */
     .topbar{display:flex;align-items:center;justify-content:space-between;padding:1rem 0 0;margin-bottom:1.25rem;}
@@ -240,8 +240,10 @@
     <div id="import-preview" style="display:none;">
       <div id="dup-banner" class="dup-banner ok"></div>
       <div class="card" id="import-list"></div>
-      <button class="btn-primary" onclick="confirmImport()">Confirmar e salvar tudo</button>
-      <button class="btn-outline" onclick="cancelImport()">Cancelar</button>
+      <div style="padding-bottom:1rem;">
+        <button class="btn-primary" onclick="confirmImport()">Confirmar e salvar tudo</button>
+        <button class="btn-outline" onclick="cancelImport()">Cancelar</button>
+      </div>
     </div>
   </div>
 
