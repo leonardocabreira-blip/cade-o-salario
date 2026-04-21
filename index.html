@@ -235,7 +235,8 @@
       <input type="file" id="file-input" accept=".csv,.ofx,.pdf" onchange="handleFileSelect(this)"/>
       <div style="font-size:32px;margin-bottom:10px;">📄</div>
       <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Toque para importar</div>
-      <div style="font-size:13px;color:var(--text3);">CSV, OFX ou PDF de extrato</div>
+      <div style="font-size:13px;color:var(--text3);">PDF, CSV ou OFX de extrato</div>
+      <div style="font-size:11px;color:var(--income);margin-top:6px;">✦ PDF lido automaticamente por IA</div>
     </label>
     <div id="import-preview" style="display:none;">
       <div id="dup-banner" class="dup-banner ok"></div>
@@ -502,15 +503,74 @@ async function saveTransaction(){
 function handleFileSelect(input){
   const file=input.files[0];if(!file)return;
   const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='pdf'){processPdfWithAI(file);return;}
   const reader=new FileReader();
   reader.onload=e=>{
     let parsed=[];
     if(ext==='csv') parsed=parseCSV(e.target.result);
     else if(ext==='ofx') parsed=parseOFX(e.target.result);
-    else{showToast('PDF: exporte CSV pelo app do banco');parsed=generateDemoImport();}
+    else parsed=generateDemoImport();
     showImportPreview(parsed);
   };
-  if(ext==='pdf') reader.readAsDataURL(file); else reader.readAsText(file,'UTF-8');
+  reader.readAsText(file,'UTF-8');
+}
+
+async function processPdfWithAI(file){
+  // Show loading state
+  const zone = document.querySelector('.upload-zone');
+  const origHTML = zone.innerHTML;
+  zone.innerHTML = '<div style="font-size:28px;margin-bottom:10px;">⏳</div><div style="font-size:15px;font-weight:600;margin-bottom:6px;">IA lendo o PDF...</div><div style="font-size:13px;color:var(--text3);">Isso pode levar alguns segundos</div>';
+  setSyncing(true);
+
+  try {
+    // Convert PDF to base64
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const response = await fetch('/api/process-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pdfBase64: base64, categories: state.categories })
+    });
+
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || 'Erro desconhecido');
+
+    // If AI found a due_date, ask user if they want to use it
+    let useDate = null;
+    if (data.due_date) {
+      const parts = data.due_date.split('-');
+      const formatted = parts[2]+'/'+parts[1]+'/'+parts[0];
+      const use = confirm(`✦ IA detectou vencimento em ${formatted}.
+
+Lançar todas as transações nessa data?
+
+OK = Sim, usar data de vencimento
+Cancelar = Não, usar data de cada compra`);
+      if (use) useDate = data.due_date;
+    }
+
+    // Apply due_date if chosen
+    const transactions = (data.transactions || []).map(t => ({
+      ...t,
+      date: useDate || t.date,
+      suggestedCat: t.category,
+    }));
+
+    zone.innerHTML = origHTML;
+    setSyncing(false);
+    showImportPreview(transactions);
+
+  } catch(e) {
+    zone.innerHTML = origHTML;
+    setSyncing(false, true);
+    showToast('Erro ao processar PDF: ' + e.message);
+    document.getElementById('file-input').value = '';
+  }
 }
 
 function parseCSV(text){
