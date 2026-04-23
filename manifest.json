@@ -1,6 +1,6 @@
 {
-  "name": "Cadê o Salário?",
-  "short_name": "Cadê o $?",
+  "name": "Mapa dos Gastos",
+  "short_name": "Mapa $",
   "description": "Controle financeiro pessoal com categorização automática por IA",
   "start_url": "/",
   "display": "standalone",
@@ -8,17 +8,7 @@
   "theme_color": "#F8F7F4",
   "orientation": "portrait",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }
