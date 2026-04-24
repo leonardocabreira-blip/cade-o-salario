@@ -203,7 +203,7 @@
     <div class="filter-bar" id="origin-filter">
       <button class="filter-chip active" onclick="setOriginFilter('all',this)">Todos</button>
       <button class="filter-chip" onclick="setOriginFilter('credit',this)">💳 Cartão</button>
-      <button class="filter-chip" onclick="setOriginFilter('debit',this)">🏦 Débito</button>
+      <button class="filter-chip" onclick="setOriginFilter('debit',this)">🏦 Conta</button>
       <button class="filter-chip" onclick="setOriginFilter('pix',this)">⚡ Pix</button>
       <button class="filter-chip" onclick="setOriginFilter('cash',this)">💵 Dinheiro</button>
       <button class="filter-chip" onclick="setOriginFilter('other',this)">📋 Outros</button>
@@ -224,7 +224,7 @@
     <div class="card">
       <div class="form-group"><label class="form-label">Descrição</label><input type="text" id="inp-desc" placeholder="Ex: iFood, Salário, Farmácia..." oninput="onDescInput(this.value)"/></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Valor (R$)</label><input type="number" id="inp-val" placeholder="0,00" step="0.01" min="0"/></div>
+        <div class="form-group"><label class="form-label">Valor (R$)</label><input type="number" id="inp-val" placeholder="0,00" step="0.01" min="0" oninput="updateInstallmentPreview()"/></div>
         <div class="form-group"><label class="form-label">Data</label><input type="date" id="inp-date"/></div>
       </div>
       <div class="form-group">
@@ -233,14 +233,39 @@
       </div>
       <div class="ai-suggest" id="ai-suggest-box">✦ IA sugeriu: <strong id="ai-suggest-text"></strong></div>
       <div class="form-group">
-        <label class="form-label">Origem do pagamento</label>
-        <select id="inp-origin">
+        <label class="form-label">Origem</label>
+        <select id="inp-origin" onchange="toggleInstallments()">
           <option value="credit">💳 Cartão de crédito</option>
-          <option value="debit">🏦 Débito em conta</option>
+          <option value="debit">🏦 Conta bancária</option>
           <option value="pix">⚡ Pix</option>
           <option value="cash">💵 Dinheiro</option>
           <option value="other">📋 Outro</option>
         </select>
+      </div>
+      <div id="installment-box" style="display:none;">
+        <div style="background:var(--accent-bg);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:14px;">
+          <div style="font-size:12px;color:var(--accent);font-weight:500;margin-bottom:10px;">📅 Parcelamento</div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Nº de parcelas</label>
+              <select id="inp-installments">
+                <option value="1">À vista</option>
+                <option value="2">2x</option><option value="3">3x</option>
+                <option value="4">4x</option><option value="5">5x</option>
+                <option value="6">6x</option><option value="7">7x</option>
+                <option value="8">8x</option><option value="9">9x</option>
+                <option value="10">10x</option><option value="12">12x</option>
+                <option value="18">18x</option><option value="24">24x</option>
+                <option value="36">36x</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Dia de vencimento</label>
+              <input type="number" id="inp-due-day" placeholder="Ex: 2" min="1" max="31" value=""/>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--accent);margin-top:8px;" id="installment-preview"></div>
+        </div>
       </div>
     </div>
     <button class="btn-primary" onclick="saveTransaction()">Salvar lançamento</button>
@@ -371,6 +396,38 @@
 
 <div id="toast"></div>
 
+<!-- MODAL EDITAR TRANSAÇÃO -->
+<div class="modal-overlay" id="edit-tx-modal" onclick="handleEditTxModalClick(event)">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+      <div class="modal-title">Editar lançamento</div>
+      <button onclick="closeEditTxModal()" style="background:none;border:none;font-size:22px;color:var(--text3);cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div class="form-group"><label class="form-label">Descrição</label><input type="text" id="edit-desc"/></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Valor (R$)</label><input type="number" id="edit-val" step="0.01" min="0"/></div>
+      <div class="form-group"><label class="form-label">Data</label><input type="date" id="edit-date"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">Categoria</label><select id="edit-cat"></select></div>
+    <div class="form-group">
+      <label class="form-label">Origem</label>
+      <select id="edit-origin">
+        <option value="credit">💳 Cartão de crédito</option>
+        <option value="debit">🏦 Conta bancária</option>
+        <option value="pix">⚡ Pix</option>
+        <option value="cash">💵 Dinheiro</option>
+        <option value="other">📋 Outro</option>
+      </select>
+    </div>
+    <div class="modal-btns" style="margin-bottom:12px;">
+      <button class="modal-btn secondary" onclick="closeEditTxModal()">Cancelar</button>
+      <button class="modal-btn primary" onclick="saveEditTx()">Salvar</button>
+    </div>
+    <button onclick="deleteTransaction()" style="width:100%;background:none;border:0.5px solid var(--expense);color:var(--expense);border-radius:var(--r-sm);padding:12px;font-size:14px;font-weight:500;">🗑 Excluir lançamento</button>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -389,7 +446,7 @@ let state={
   transactions:[], learning:{}, pendingImport:[], editingTxId:null, selectedCat:null,
 };
 
-const ORIGINS={credit:{label:'Cartão',icon:'💳',cls:'origin-credit'},debit:{label:'Débito',icon:'🏦',cls:'origin-debit'},pix:{label:'Pix',icon:'⚡',cls:'origin-pix'},cash:{label:'Dinheiro',icon:'💵',cls:'origin-cash'},other:{label:'Outro',icon:'📋',cls:'origin-other'}};
+const ORIGINS={credit:{label:'Cartão',icon:'💳',cls:'origin-credit'},debit:{label:'Conta bancária',icon:'🏦',cls:'origin-debit'},pix:{label:'Pix',icon:'⚡',cls:'origin-pix'},cash:{label:'Dinheiro',icon:'💵',cls:'origin-cash'},other:{label:'Outro',icon:'📋',cls:'origin-other'}};
 const CAT_COLORS=['#1D9E75','#D85A30','#378ADD','#D4537E','#EF9F27','#7F77DD','#639922','#0F6E56','#BA7517','#5DCAA5','#F0997B','#85B7EB','#FAC775','#888780','#D85A30','#378ADD','#444441'];
 const CAT_ICONS={'Alimentação':'🍽️','Assinaturas':'📺','Bens duráveis':'📦','Bens pessoais':'🛍️','Cuidados pessoais':'💆','Deliveries':'🛵','Educação':'📚','Investimentos':'📈','Lazer':'🎉','Mercado':'🛒','Moradia':'🏠','Pet':'🐾','Saúde':'💊','Transporte':'🚗','Vestuário':'👕','Viagem':'✈️','Salário':'💰','Renda Extra':'💸','Freelance':'💻','Vale Alimentação':'🍱','Vale Refeição':'🍴','Dividendos':'📊','Aluguel Recebido':'🏢','Reembolso':'↩️','Outros':'💳'};
 const BASE_EXPENSE_RULES={'ifood':'Deliveries','rappi':'Deliveries','uber eats':'Deliveries','uber':'Transporte','99app':'Transporte','posto':'Transporte','shell':'Transporte','ipiranga':'Transporte','netflix':'Assinaturas','spotify':'Assinaturas','amazon prime':'Assinaturas','disney':'Assinaturas','deezer':'Assinaturas','globoplay':'Assinaturas','amazon':'Bens duráveis','mercado livre':'Bens duráveis','shopee':'Bens duráveis','supermercado':'Mercado','zaffari':'Mercado','carrefour':'Mercado','farmácia':'Saúde','panvel':'Saúde','hospital':'Saúde','aluguel':'Moradia','condomínio':'Moradia','claro':'Moradia','vivo':'Moradia','tim':'Moradia','escola':'Educação','faculdade':'Educação','curso':'Educação','cinema':'Lazer','restaurante':'Lazer','viagem':'Viagem','hotel':'Viagem','pet':'Pet','veterinário':'Pet','zara':'Vestuário','renner':'Vestuário'};
@@ -510,7 +567,7 @@ function txHtml(t){
   const originTag=`<span class="tx-origin-tag ${orig.cls}">${orig.icon} ${orig.label}</span>`;
   const aiTag=t.aiCat?`<button class="edit-btn" onclick="openModal('${t.id}','${escHtml(t.desc)}','${escHtml(t.cat)}')">✦ corrigir</button>`:'';
   const dateStr=t.date?t.date.split('-').reverse().slice(0,2).join('/'):'';
-  return`<div class="tx-row"><div class="tx-icon" style="background:${bg}">${icon}</div><div class="tx-info"><div class="tx-desc">${escHtml(t.desc)}</div><div class="tx-meta">${originTag}<span class="tx-cat-tag">${escHtml(t.cat)}</span><span class="tx-date">${dateStr}</span>${aiTag}</div></div><div class="tx-val ${t.val>=0?'green':'red'}">${t.val>=0?'+':''}R$ ${fmtNum(Math.abs(t.val))}</div></div>`;
+  return`<div class="tx-row" style="cursor:pointer;" onclick="openEditTxModal('${t.id}')"><div class="tx-icon" style="background:${bg}">${icon}</div><div class="tx-info"><div class="tx-desc">${escHtml(t.desc)}</div><div class="tx-meta">${originTag}<span class="tx-cat-tag">${escHtml(t.cat)}</span><span class="tx-date">${dateStr}</span>${aiTag}</div></div><div class="tx-val ${t.val>=0?'green':'red'}">${t.val>=0?'+':''}R$ ${fmtNum(Math.abs(t.val))}</div></div>`;
 }
 
 function toggleVerTodos(){state.showAllTx=!state.showAllTx;renderHome();}
@@ -565,13 +622,33 @@ async function saveTransaction(){
   if(!desc){showToast('Informe a descrição');return;}
   if(!val||val<=0){showToast('Informe um valor válido');return;}
   if(!date){showToast('Informe a data');return;}
-  const amount=state.currentType==='income'?Math.abs(val):-Math.abs(val);
+  const baseAmount=state.currentType==='income'?Math.abs(val):-Math.abs(val);
+  // Handle installments
+  const nInst=origin==='credit'?parseInt(document.getElementById('inp-installments')?.value||1):1;
+  const dueDay=parseInt(document.getElementById('inp-due-day')?.value||0);
+  const rows=[];
+  if(nInst>1){
+    const parcel=Math.round((Math.abs(val)/nInst)*100)/100;
+    const sign=baseAmount<0?-1:1;
+    const baseDate=new Date(date+'T00:00:00');
+    for(let i=0;i<nInst;i++){
+      let d=new Date(baseDate);
+      d.setMonth(d.getMonth()+i);
+      if(dueDay>0) d.setDate(Math.min(dueDay,28));
+      const isoDate=d.toISOString().slice(0,10);
+      rows.push({user_id:state.user.id,description:`${desc} (${i+1}/${nInst})`,amount:sign*parcel,date:isoDate,category:cat,ai_categorized:false,source:'manual',origin});
+    }
+  } else {
+    rows.push({user_id:state.user.id,description:desc,amount:baseAmount,date,category:cat,ai_categorized:false,source:'manual',origin});
+  }
   setSyncing(true);
-  const{data,error}=await supa.from('transactions').insert({user_id:state.user.id,description:desc,amount,date,category:cat,ai_categorized:false,source:'manual',origin}).select().single();
+  const{data,error}=await supa.from('transactions').insert(rows).select();
   setSyncing(false,!!error);
   if(error){showToast('Erro ao salvar');return;}
-  state.transactions.unshift({id:data.id,desc,val:amount,date,cat,aiCat:false,origin});
-  showToast('✓ Lançamento salvo!');initAddForm();
+  const saved=(data||[]).map(r=>({id:r.id,desc:r.description,val:Number(r.amount),date:r.date,cat:r.category,aiCat:false,origin:r.origin||'other'}));
+  state.transactions.unshift(...saved);
+  showToast(nInst>1?`✓ ${nInst} parcelas lançadas!`:'✓ Lançamento salvo!');
+  initAddForm();
 }
 
 // ─── IMPORT ──────────────────────────────────────────────────────────────────
@@ -732,10 +809,22 @@ function openModal(txId,desc,currentCat){state.editingTxId={source:'tx',id:txId}
 function openImportModal(txId,desc,currentCat){state.editingTxId={source:'import',id:txId};_openCatModal(desc,currentCat);}
 function _openCatModal(desc,currentCat){
   state.selectedCat=currentCat;
-  document.getElementById('modal-title').textContent=`Corrigir: "${desc.slice(0,28)}"`;
-  document.getElementById('modal-sub').textContent=`Categoria atual: ${currentCat}`;
+  document.getElementById('modal-title').textContent='Corrigir: "'+desc.slice(0,28)+'"';
+  document.getElementById('modal-sub').textContent='Categoria atual: '+currentCat;
   const allCats=[...state.expenseCategories,...state.incomeCategories].filter((v,i,a)=>a.indexOf(v)===i);
-  document.getElementById('modal-chips').innerHTML=allCats.map(c=>`<div class="cat-chip ${c===currentCat?'selected':''}" onclick="selectChip(this,'${escHtml(c)}')">${escHtml(c)}</div>`).join('');
+  const chips=allCats.map(c=>{
+    const sel=c===currentCat;
+    const el=document.createElement('div');
+    el.className='cat-chip'+(sel?' selected':'');
+    el.textContent=c;
+    el.addEventListener('click',function(){selectChip(this,c);});
+    return el.outerHTML;
+  });
+  document.getElementById('modal-chips').innerHTML=chips.join('');
+  // Re-attach events after innerHTML
+  document.querySelectorAll('.cat-chip').forEach(el=>{
+    el.addEventListener('click',function(){selectChip(this,this.textContent);});
+  });
   document.getElementById('cat-modal').classList.add('open');
 }
 function selectChip(el,cat){document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');state.selectedCat=cat;}
@@ -815,6 +904,80 @@ document.addEventListener('touchend',e=>{
   if(active.id==='screen-home')changeMonth(dx<0?1:-1);
   if(active.id==='screen-report'){const isAnnual=document.getElementById('report-annual').style.display!=='none';if(isAnnual)changeYear(dx<0?1:-1);else changeReportMonth(dx<0?1:-1);}
 },{passive:true});
+
+
+// ─── INSTALLMENTS ────────────────────────────────────────────────────────────
+function toggleInstallments(){
+  const origin=document.getElementById('inp-origin').value;
+  const box=document.getElementById('installment-box');
+  box.style.display=origin==='credit'?'block':'none';
+  updateInstallmentPreview();
+}
+
+function updateInstallmentPreview(){
+  const n=parseInt(document.getElementById('inp-installments')?.value||1);
+  const val=parseFloat(document.getElementById('inp-val')?.value||0);
+  const day=document.getElementById('inp-due-day')?.value;
+  const preview=document.getElementById('installment-preview');
+  if(!preview)return;
+  if(n<=1){preview.textContent='';return;}
+  const parcel=val/n;
+  preview.textContent=`${n}x de R$ ${fmtNum(parcel)}${day?' — vence todo dia '+day:''}`;
+}
+
+// ─── EDIT TRANSACTION ────────────────────────────────────────────────────────
+let editingTxId=null;
+
+function openEditTxModal(txId){
+  const tx=state.transactions.find(t=>t.id===txId);
+  if(!tx)return;
+  editingTxId=txId;
+  document.getElementById('edit-desc').value=tx.desc;
+  document.getElementById('edit-val').value=Math.abs(tx.val);
+  document.getElementById('edit-date').value=tx.date;
+  document.getElementById('edit-origin').value=tx.origin||'other';
+  // populate category select
+  const isIncome=tx.val>0;
+  const cats=isIncome?state.incomeCategories:state.expenseCategories;
+  const sel=document.getElementById('edit-cat');
+  sel.innerHTML=cats.map(cat=>`<option value="${escHtml(cat)}" ${cat===tx.cat?'selected':''}>${escHtml(cat)}</option>`).join('');
+  document.getElementById('edit-tx-modal').classList.add('open');
+}
+
+function closeEditTxModal(){document.getElementById('edit-tx-modal').classList.remove('open');editingTxId=null;}
+function handleEditTxModalClick(e){if(e.target===document.getElementById('edit-tx-modal'))closeEditTxModal();}
+
+async function saveEditTx(){
+  if(!editingTxId)return;
+  const tx=state.transactions.find(t=>t.id===editingTxId);
+  if(!tx)return;
+  const desc=document.getElementById('edit-desc').value.trim();
+  const val=parseFloat(document.getElementById('edit-val').value);
+  const date=document.getElementById('edit-date').value;
+  const cat=document.getElementById('edit-cat').value;
+  const origin=document.getElementById('edit-origin').value;
+  if(!desc||!val||!date){showToast('Preencha todos os campos');return;}
+  const amount=tx.val>=0?Math.abs(val):-Math.abs(val);
+  setSyncing(true);
+  const{error}=await supa.from('transactions').update({description:desc,amount,date,category:cat,origin,ai_categorized:false}).eq('id',editingTxId);
+  setSyncing(false,!!error);
+  if(error){showToast('Erro ao salvar');return;}
+  tx.desc=desc;tx.val=amount;tx.date=date;tx.cat=cat;tx.origin=origin;tx.aiCat=false;
+  closeEditTxModal();renderHome();
+  showToast('✓ Lançamento atualizado!');
+}
+
+async function deleteTransaction(){
+  if(!editingTxId)return;
+  if(!confirm('Excluir este lançamento?'))return;
+  setSyncing(true);
+  const{error}=await supa.from('transactions').delete().eq('id',editingTxId);
+  setSyncing(false,!!error);
+  if(error){showToast('Erro ao excluir');return;}
+  state.transactions=state.transactions.filter(t=>t.id!==editingTxId);
+  closeEditTxModal();renderHome();
+  showToast('✓ Lançamento excluído!');
+}
 
 init();
 </script>
