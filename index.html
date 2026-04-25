@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
   <meta name="theme-color" content="#f8f7f4"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <title>Mapa dos Gastos</title>
+  <title>Mapa de Gastos</title>
   <link rel="manifest" href="manifest.json"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
@@ -102,8 +102,8 @@
     .tab-btn{padding:7px 14px;border-radius:20px;font-size:13px;border:0.5px solid var(--border);background:var(--surface2);color:var(--text2);transition:all .15s;font-weight:500;}
     .tab-btn.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent);}
     /* Filter bar */
-    .filter-bar{display:flex;gap:6px;margin-bottom:1rem;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;}
-    .filter-bar::-webkit-scrollbar{display:none;}
+    .filter-bar{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap;}
+    
     .filter-chip{padding:5px 12px;border-radius:20px;font-size:12px;border:0.5px solid var(--border);background:var(--surface2);color:var(--text2);white-space:nowrap;font-weight:500;transition:all .15s;}
     .filter-chip.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent);}
     .cat-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--border);}
@@ -154,11 +154,11 @@
 </head>
 <body>
 
-<div id="loading"><div class="logo">mapa dos <span>gastos</span></div><div class="spinner"></div></div>
+<div id="loading"><div class="logo">Mapa de <span>Gastos</span></div><div class="spinner"></div></div>
 
 <div id="auth-screen">
   <div class="auth-box">
-    <div class="auth-logo">mapa dos <span>gastos</span></div>
+    <div class="auth-logo">Mapa de <span>Gastos</span></div>
     <div class="auth-sub">Controle financeiro com IA. Dados salvos na nuvem, acesso em qualquer dispositivo.</div>
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="setAuthTab('login',this)">Entrar</button>
@@ -182,7 +182,7 @@
 <div id="app-screen">
 <div id="app">
   <div class="topbar">
-    <div class="logo">mapa dos <span>gastos</span></div>
+    <div class="logo">Mapa de <span>Gastos</span></div>
     <div class="topbar-right">
       <div class="ai-pill"><div class="ai-dot"></div>IA</div>
       <div class="sync-dot" id="sync-dot" title="Sincronizado"></div>
@@ -352,7 +352,7 @@
 
     <div class="section-title">Sobre</div>
     <div class="card">
-      <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Mapa dos Gastos <span style="font-size:11px;color:var(--text3);font-weight:400;">v2.0</span></div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Mapa de Gastos <span style="font-size:11px;color:var(--text3);font-weight:400;">v2.0</span></div>
       <div style="font-size:13px;color:var(--text3);line-height:1.6;">Controle financeiro com IA e sincronização em nuvem.</div>
     </div>
   </div>
@@ -565,9 +565,8 @@ function txHtml(t){
   const icon=CAT_ICONS[t.cat]||'💳';const bg=t.val>0?'var(--income-bg)':'var(--surface2)';
   const orig=ORIGINS[t.origin||'other']||ORIGINS.other;
   const originTag=`<span class="tx-origin-tag ${orig.cls}">${orig.icon} ${orig.label}</span>`;
-  const aiTag=t.aiCat?`<button class="edit-btn" onclick="openModal('${t.id}','${escHtml(t.desc)}','${escHtml(t.cat)}')">✦ corrigir</button>`:'';
   const dateStr=t.date?t.date.split('-').reverse().slice(0,2).join('/'):'';
-  return`<div class="tx-row" style="cursor:pointer;" onclick="openEditTxModal('${t.id}')"><div class="tx-icon" style="background:${bg}">${icon}</div><div class="tx-info"><div class="tx-desc">${escHtml(t.desc)}</div><div class="tx-meta">${originTag}<span class="tx-cat-tag">${escHtml(t.cat)}</span><span class="tx-date">${dateStr}</span>${aiTag}</div></div><div class="tx-val ${t.val>=0?'green':'red'}">${t.val>=0?'+':''}R$ ${fmtNum(Math.abs(t.val))}</div></div>`;
+  return`<div class="tx-row" style="cursor:pointer;" onclick="openEditTxModal('${t.id}')"><div class="tx-icon" style="background:${bg}">${icon}</div><div class="tx-info"><div class="tx-desc">${escHtml(t.desc)}</div><div class="tx-meta">${originTag}<span class="tx-cat-tag">${escHtml(t.cat)}</span><span class="tx-date">${dateStr}</span></div></div><div class="tx-val ${t.val>=0?'green':'red'}">${t.val>=0?'+':''}R$ ${fmtNum(Math.abs(t.val))}</div></div>`;
 }
 
 function toggleVerTodos(){state.showAllTx=!state.showAllTx;renderHome();}
@@ -895,11 +894,24 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 
-let touchStartX=0,touchStartY=0;
-document.addEventListener('touchstart',e=>{touchStartX=e.changedTouches[0].screenX;touchStartY=e.changedTouches[0].screenY;},{passive:true});
+let touchStartX=0,touchStartY=0,touchStartTarget=null;
+document.addEventListener('touchstart',e=>{
+  touchStartX=e.changedTouches[0].screenX;
+  touchStartY=e.changedTouches[0].screenY;
+  touchStartTarget=e.target;
+},{passive:true});
 document.addEventListener('touchend',e=>{
-  const dx=e.changedTouches[0].screenX-touchStartX;const dy=e.changedTouches[0].screenY-touchStartY;
-  if(Math.abs(dx)<60)return;if(Math.abs(dy)>Math.abs(dx)*0.6)return;
+  const dx=e.changedTouches[0].screenX-touchStartX;
+  const dy=e.changedTouches[0].screenY-touchStartY;
+  if(Math.abs(dx)<70)return;
+  if(Math.abs(dy)>Math.abs(dx)*0.5)return;
+  // Don't trigger if swipe started inside a horizontally scrollable element
+  let el=touchStartTarget;
+  while(el&&el!==document.body){
+    if(el.classList&&el.classList.contains('filter-bar'))return;
+    if(el.classList&&el.classList.contains('modal-box'))return;
+    el=el.parentElement;
+  }
   const active=document.querySelector('.screen.active');if(!active)return;
   if(active.id==='screen-home')changeMonth(dx<0?1:-1);
   if(active.id==='screen-report'){const isAnnual=document.getElementById('report-annual').style.display!=='none';if(isAnnual)changeYear(dx<0?1:-1);else changeReportMonth(dx<0?1:-1);}
@@ -969,14 +981,21 @@ async function saveEditTx(){
 
 async function deleteTransaction(){
   if(!editingTxId)return;
-  if(!confirm('Excluir este lançamento?'))return;
+  if(!confirm('Excluir este lançamento? Essa ação não pode ser desfeita.'))return;
+  const id=editingTxId;
+  closeEditTxModal();
   setSyncing(true);
-  const{error}=await supa.from('transactions').delete().eq('id',editingTxId);
-  setSyncing(false,!!error);
-  if(error){showToast('Erro ao excluir');return;}
-  state.transactions=state.transactions.filter(t=>t.id!==editingTxId);
-  closeEditTxModal();renderHome();
-  showToast('✓ Lançamento excluído!');
+  try{
+    const{error}=await supa.from('transactions').delete().eq('id',id).eq('user_id',state.user.id);
+    if(error) throw error;
+    state.transactions=state.transactions.filter(t=>t.id!==id);
+    renderHome();
+    showToast('✓ Lançamento excluído!');
+  }catch(e){
+    showToast('Erro ao excluir: '+e.message);
+  }finally{
+    setSyncing(false);
+  }
 }
 
 init();

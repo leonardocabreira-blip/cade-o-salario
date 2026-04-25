@@ -1,6 +1,6 @@
 {
-  "name": "Mapa dos Gastos",
-  "short_name": "Mapa $",
+  "name": "Mapa de Gastos",
+  "short_name": "Mapa de $",
   "description": "Controle financeiro pessoal com categorização automática por IA",
   "start_url": "/",
   "display": "standalone",
