@@ -11,11 +11,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
@@ -25,108 +20,200 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
-
-      - name: Create Bubblewrap config
-        run: |
-          mkdir -p twa-build && cd twa-build
-          cat > twa-manifest.json << 'MANIFEST'
-          {
-            "packageId": "br.com.mapadegastos.app",
-            "host": "cade-o-salario.vercel.app",
-            "name": "Mapa de Gastos",
-            "launcherName": "Mapa de $",
-            "display": "standalone",
-            "orientation": "portrait",
-            "themeColor": "#F8F7F4",
-            "navigationColor": "#F8F7F4",
-            "navigationColorDark": "#181816",
-            "navigationDividerColor": "#F8F7F4",
-            "navigationDividerColorDark": "#181816",
-            "backgroundColor": "#F8F7F4",
-            "enableNotifications": false,
-            "startUrl": "/",
-            "iconUrl": "https://cade-o-salario.vercel.app/icon-512.png",
-            "maskableIconUrl": "https://cade-o-salario.vercel.app/icon-512.png",
-            "monochromeIconUrl": "https://cade-o-salario.vercel.app/icon-512.png",
-            "appVersion": "1",
-            "appVersionName": "1.0.0",
-            "shortcuts": [],
-            "generatorApp": "bubblewrap-cli",
-            "webManifestUrl": "https://cade-o-salario.vercel.app/manifest.json",
-            "isChromeOSOnly": false,
-            "isMetaQuest": false,
-            "fullScopeUrl": "https://cade-o-salario.vercel.app/",
-            "minSdkVersion": 19,
-            "features": {},
-            "alphaDependencies": { "enabled": false },
-            "enableSiteSettingsShortcut": true,
-            "signingKey": {
-              "path": "../keystore.jks",
-              "alias": "mapadegastos"
-            },
-            "splashScreenFadeOutDuration": 300,
-            "webManifest": {
-              "name": "Mapa de Gastos",
-              "short_name": "Mapa de $",
-              "start_url": "/",
-              "display": "standalone",
-              "theme_color": "#F8F7F4",
-              "background_color": "#F8F7F4",
-              "icons": [
-                { "src": "https://cade-o-salario.vercel.app/icon-512.png", "sizes": "512x512", "type": "image/png" }
-              ]
-            }
-          }
-          MANIFEST
+      - name: Install Android build tools
+        run: sdkmanager "build-tools;34.0.0" "platforms;android-34"
 
       - name: Generate keystore
         run: |
-          keytool -genkeypair \
-            -v \
+          keytool -genkeypair -v \
             -keystore keystore.jks \
             -alias mapadegastos \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
+            -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
             -keypass "${{ secrets.KEYSTORE_PASSWORD }}" \
-            -dname "CN=Mapa de Gastos, OU=App, O=Mapa de Gastos, L=Porto Alegre, ST=RS, C=BR"
+            -dname "CN=Mapa de Gastos, OU=App, O=MapaDeGastos, L=Porto Alegre, ST=RS, C=BR"
 
-      - name: Initialize Bubblewrap
-        working-directory: twa-build
+      - name: Create Android project structure
         run: |
-          echo "n" | bubblewrap init \
-            --manifest https://cade-o-salario.vercel.app/manifest.json \
-            --skipPwaValidation 2>&1 || true
-          # Override with our config
-          cp twa-manifest.json twa-manifest.json.bak
+          mkdir -p twa-app/app/src/main/res/values
+          mkdir -p twa-app/app/src/main/res/xml
+          mkdir -p twa-app/app/src/main/res/drawable
+          mkdir -p twa-app/app/src/main/res/mipmap-hdpi
+          mkdir -p twa-app/app/src/main/res/mipmap-mdpi
+          mkdir -p twa-app/app/src/main/res/mipmap-xhdpi
+          mkdir -p twa-app/app/src/main/res/mipmap-xxhdpi
+          mkdir -p twa-app/app/src/main/res/mipmap-xxxhdpi
 
-      - name: Build with Gradle directly
-        run: |
-          cd twa-build
-          if [ -f "gradlew" ]; then
-            chmod +x gradlew
-            echo "${{ secrets.KEYSTORE_PASSWORD }}" | ./gradlew bundleRelease \
-              -Pandroid.injected.signing.store.file=$(pwd)/../keystore.jks \
-              -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
-              -Pandroid.injected.signing.key.alias=mapadegastos \
-              -Pandroid.injected.signing.key.password="${{ secrets.KEYSTORE_PASSWORD }}"
-          else
-            echo "Gradle wrapper not found, trying bubblewrap build"
-            echo "n" | bubblewrap build --skipPwaValidation 2>&1
-          fi
+          cp icon-192.png twa-app/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp icon-192.png twa-app/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp icon-192.png twa-app/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp icon-192.png twa-app/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp icon-512.png twa-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
-      - name: Find and upload artifacts
+      - name: Write Gradle files
         run: |
-          find . -name "*.apk" -o -name "*.aab" 2>/dev/null | head -20
+          cat > twa-app/settings.gradle << 'HEREDOC'
+          pluginManagement {
+            repositories {
+              google()
+              mavenCentral()
+              gradlePluginPortal()
+            }
+          }
+          dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+              google()
+              mavenCentral()
+            }
+          }
+          rootProject.name = "MapaDeGastos"
+          include ':app'
+          HEREDOC
+
+          cat > twa-app/build.gradle << 'HEREDOC'
+          plugins {
+            id 'com.android.application' version '8.2.2' apply false
+          }
+          HEREDOC
+
+          cat > twa-app/app/build.gradle << 'HEREDOC'
+          plugins {
+            id 'com.android.application'
+          }
+          android {
+            namespace 'br.com.mapadegastos.app'
+            compileSdk 34
+            defaultConfig {
+              applicationId 'br.com.mapadegastos.app'
+              minSdk 21
+              targetSdk 34
+              versionCode 1
+              versionName '1.0.0'
+            }
+            signingConfigs {
+              release {
+                storeFile file('../../keystore.jks')
+                storePassword System.getenv('KEYSTORE_PASSWORD')
+                keyAlias 'mapadegastos'
+                keyPassword System.getenv('KEYSTORE_PASSWORD')
+              }
+            }
+            buildTypes {
+              release {
+                minifyEnabled false
+                signingConfig signingConfigs.release
+              }
+            }
+            compileOptions {
+              sourceCompatibility JavaVersion.VERSION_1_8
+              targetCompatibility JavaVersion.VERSION_1_8
+            }
+          }
+          dependencies {
+            implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+          }
+          HEREDOC
+
+      - name: Write AndroidManifest
+        run: |
+          cat > twa-app/app/src/main/AndroidManifest.xml << 'HEREDOC'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <application
+              android:allowBackup="true"
+              android:icon="@mipmap/ic_launcher"
+              android:label="@string/app_name"
+              android:theme="@style/Theme.LauncherActivity">
+              <activity
+                android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+                android:exported="true">
+                <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL"
+                  android:value="https://cade-o-salario.vercel.app" />
+                <meta-data android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
+                  android:resource="@color/colorPrimary" />
+                <meta-data android:name="android.support.customtabs.trusted.SPLASH_SCREEN_FADE_OUT_DURATION"
+                  android:value="300" />
+                <meta-data android:name="android.support.customtabs.trusted.FILE_PROVIDER_AUTHORITY"
+                  android:value="br.com.mapadegastos.app.fileprovider" />
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN" />
+                  <category android:name="android.intent.category.LAUNCHER" />
+                </intent-filter>
+                <intent-filter android:autoVerify="true">
+                  <action android:name="android.intent.action.VIEW" />
+                  <category android:name="android.intent.category.DEFAULT" />
+                  <category android:name="android.intent.category.BROWSABLE" />
+                  <data android:scheme="https" android:host="cade-o-salario.vercel.app" />
+                </intent-filter>
+              </activity>
+              <provider
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="br.com.mapadegastos.app.fileprovider"
+                android:exported="false"
+                android:grantUriPermissions="true">
+                <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                  android:resource="@xml/file_paths" />
+              </provider>
+            </application>
+          </manifest>
+          HEREDOC
+
+      - name: Write resource files
+        run: |
+          cat > twa-app/app/src/main/res/values/strings.xml << 'HEREDOC'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+            <string name="app_name">Mapa de Gastos</string>
+          </resources>
+          HEREDOC
+
+          cat > twa-app/app/src/main/res/values/colors.xml << 'HEREDOC'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+            <color name="colorPrimary">#F8F7F4</color>
+            <color name="backgroundColor">#F8F7F4</color>
+          </resources>
+          HEREDOC
+
+          cat > twa-app/app/src/main/res/values/styles.xml << 'HEREDOC'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+            <style name="Theme.LauncherActivity" parent="android:Theme.NoTitleBar.Fullscreen">
+              <item name="android:windowBackground">@color/backgroundColor</item>
+            </style>
+          </resources>
+          HEREDOC
+
+          cat > twa-app/app/src/main/res/xml/file_paths.xml << 'HEREDOC'
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths>
+            <external-path name="external_files" path="." />
+          </paths>
+          HEREDOC
+
+          cat > twa-app/app/src/main/res/drawable/splash.xml << 'HEREDOC'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android">
+            <solid android:color="#F8F7F4"/>
+          </shape>
+          HEREDOC
+
+      - name: Setup Gradle wrapper
+        working-directory: twa-app
+        run: gradle wrapper --gradle-version 8.4
+
+      - name: Build APK
+        working-directory: twa-app
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: mapa-de-gastos-apk
-          path: |
-            twa-build/**/*.apk
-            twa-build/**/*.aab
-          if-no-files-found: warn
+          path: twa-app/app/build/outputs/apk/release/*.apk
