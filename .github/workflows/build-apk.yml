@@ -77,6 +77,12 @@ jobs:
           }
           HEREDOC
 
+          cat > twa-app/gradle.properties << 'HEREDOC'
+          android.useAndroidX=true
+          android.enableJetifier=true
+          org.gradle.jvmargs=-Xmx2048m
+          HEREDOC
+
           cat > twa-app/app/build.gradle << 'HEREDOC'
           plugins {
             id 'com.android.application'
