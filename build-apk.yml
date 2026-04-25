@@ -1,0 +1,72 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Initialize Bubblewrap project
+        run: |
+          mkdir -p twa-build && cd twa-build
+          bubblewrap init \
+            --manifest https://cade-o-salario.vercel.app/manifest.json \
+            --directory . \
+            --packageId br.com.mapadegastos.app \
+            --name "Mapa de Gastos" \
+            --shortName "Mapa de $" \
+            --startUrl / \
+            --themeColor "#F8F7F4" \
+            --backgroundColor "#F8F7F4" \
+            --iconUrl https://cade-o-salario.vercel.app/icon-512.png \
+            --maskableIconUrl https://cade-o-salario.vercel.app/icon-512.png \
+            --splashScreenFadeOutDuration 300 \
+            --signingKeyPath ../keystore.jks \
+            --signingKeyAlias mapadegastos \
+            --signingKeyFullName "Mapa de Gastos" \
+            --signingKeyOrganization "Mapa de Gastos" \
+            --signingKeyOrganizationalUnit "App" \
+            --signingKeyCountry "BR" \
+            --signingKeyPassword "${{ secrets.KEYSTORE_PASSWORD }}" \
+            --keyStorePassword "${{ secrets.KEYSTORE_PASSWORD }}" \
+            --skipPwaValidation
+
+      - name: Build APK
+        working-directory: twa-build
+        run: bubblewrap build
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapa-de-gastos-apk
+          path: twa-build/app-release-signed.apk
+          if-no-files-found: warn
+
+      - name: Upload AAB (Play Store)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapa-de-gastos-aab
+          path: twa-build/app-release-bundle.aab
+          if-no-files-found: warn
