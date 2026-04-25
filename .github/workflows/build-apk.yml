@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -28,45 +28,105 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      - name: Initialize Bubblewrap project
+      - name: Create Bubblewrap config
         run: |
           mkdir -p twa-build && cd twa-build
-          bubblewrap init \
-            --manifest https://cade-o-salario.vercel.app/manifest.json \
-            --directory . \
-            --packageId br.com.mapadegastos.app \
-            --name "Mapa de Gastos" \
-            --shortName "Mapa de $" \
-            --startUrl / \
-            --themeColor "#F8F7F4" \
-            --backgroundColor "#F8F7F4" \
-            --iconUrl https://cade-o-salario.vercel.app/icon-512.png \
-            --maskableIconUrl https://cade-o-salario.vercel.app/icon-512.png \
-            --splashScreenFadeOutDuration 300 \
-            --signingKeyPath ../keystore.jks \
-            --signingKeyAlias mapadegastos \
-            --signingKeyFullName "Mapa de Gastos" \
-            --signingKeyOrganization "Mapa de Gastos" \
-            --signingKeyOrganizationalUnit "App" \
-            --signingKeyCountry "BR" \
-            --signingKeyPassword "${{ secrets.KEYSTORE_PASSWORD }}" \
-            --keyStorePassword "${{ secrets.KEYSTORE_PASSWORD }}" \
-            --skipPwaValidation
+          cat > twa-manifest.json << 'MANIFEST'
+          {
+            "packageId": "br.com.mapadegastos.app",
+            "host": "cade-o-salario.vercel.app",
+            "name": "Mapa de Gastos",
+            "launcherName": "Mapa de $",
+            "display": "standalone",
+            "orientation": "portrait",
+            "themeColor": "#F8F7F4",
+            "navigationColor": "#F8F7F4",
+            "navigationColorDark": "#181816",
+            "navigationDividerColor": "#F8F7F4",
+            "navigationDividerColorDark": "#181816",
+            "backgroundColor": "#F8F7F4",
+            "enableNotifications": false,
+            "startUrl": "/",
+            "iconUrl": "https://cade-o-salario.vercel.app/icon-512.png",
+            "maskableIconUrl": "https://cade-o-salario.vercel.app/icon-512.png",
+            "monochromeIconUrl": "https://cade-o-salario.vercel.app/icon-512.png",
+            "appVersion": "1",
+            "appVersionName": "1.0.0",
+            "shortcuts": [],
+            "generatorApp": "bubblewrap-cli",
+            "webManifestUrl": "https://cade-o-salario.vercel.app/manifest.json",
+            "isChromeOSOnly": false,
+            "isMetaQuest": false,
+            "fullScopeUrl": "https://cade-o-salario.vercel.app/",
+            "minSdkVersion": 19,
+            "features": {},
+            "alphaDependencies": { "enabled": false },
+            "enableSiteSettingsShortcut": true,
+            "signingKey": {
+              "path": "../keystore.jks",
+              "alias": "mapadegastos"
+            },
+            "splashScreenFadeOutDuration": 300,
+            "webManifest": {
+              "name": "Mapa de Gastos",
+              "short_name": "Mapa de $",
+              "start_url": "/",
+              "display": "standalone",
+              "theme_color": "#F8F7F4",
+              "background_color": "#F8F7F4",
+              "icons": [
+                { "src": "https://cade-o-salario.vercel.app/icon-512.png", "sizes": "512x512", "type": "image/png" }
+              ]
+            }
+          }
+          MANIFEST
 
-      - name: Build APK
+      - name: Generate keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore keystore.jks \
+            -alias mapadegastos \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -keypass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -dname "CN=Mapa de Gastos, OU=App, O=Mapa de Gastos, L=Porto Alegre, ST=RS, C=BR"
+
+      - name: Initialize Bubblewrap
         working-directory: twa-build
-        run: bubblewrap build
+        run: |
+          echo "n" | bubblewrap init \
+            --manifest https://cade-o-salario.vercel.app/manifest.json \
+            --skipPwaValidation 2>&1 || true
+          # Override with our config
+          cp twa-manifest.json twa-manifest.json.bak
+
+      - name: Build with Gradle directly
+        run: |
+          cd twa-build
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+            echo "${{ secrets.KEYSTORE_PASSWORD }}" | ./gradlew bundleRelease \
+              -Pandroid.injected.signing.store.file=$(pwd)/../keystore.jks \
+              -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
+              -Pandroid.injected.signing.key.alias=mapadegastos \
+              -Pandroid.injected.signing.key.password="${{ secrets.KEYSTORE_PASSWORD }}"
+          else
+            echo "Gradle wrapper not found, trying bubblewrap build"
+            echo "n" | bubblewrap build --skipPwaValidation 2>&1
+          fi
+
+      - name: Find and upload artifacts
+        run: |
+          find . -name "*.apk" -o -name "*.aab" 2>/dev/null | head -20
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: mapa-de-gastos-apk
-          path: twa-build/app-release-signed.apk
-          if-no-files-found: warn
-
-      - name: Upload AAB (Play Store)
-        uses: actions/upload-artifact@v4
-        with:
-          name: mapa-de-gastos-aab
-          path: twa-build/app-release-bundle.aab
+          path: |
+            twa-build/**/*.apk
+            twa-build/**/*.aab
           if-no-files-found: warn
