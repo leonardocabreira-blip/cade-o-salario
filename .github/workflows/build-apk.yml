@@ -3,12 +3,15 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
+env:
+  KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Java 17
@@ -20,8 +23,10 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android build tools
-        run: sdkmanager "build-tools;34.0.0" "platforms;android-34"
+      - name: Install tools
+        run: |
+          sdkmanager "build-tools;34.0.0" "platforms;android-34"
+          pip install Pillow -q
 
       - name: Generate keystore
         run: |
@@ -33,60 +38,79 @@ jobs:
             -keypass "${{ secrets.KEYSTORE_PASSWORD }}" \
             -dname "CN=Mapa de Gastos, OU=App, O=MapaDeGastos, L=Porto Alegre, ST=RS, C=BR"
 
-      - name: Create Android project structure
+      - name: Generate PNG icons
+        run: |
+          python3 << 'PYEOF'
+          from PIL import Image, ImageDraw
+          import os
+
+          def make_icon(size, path):
+              os.makedirs(os.path.dirname(path), exist_ok=True)
+              img = Image.new('RGBA', (size, size), (248, 247, 244, 255))
+              draw = ImageDraw.Draw(img)
+              m = size // 8
+              draw.rounded_rectangle([m, m, size-m, size-m], radius=size//6, fill=(224, 222, 214, 255))
+              pad = size // 4
+              thick = max(3, size // 14)
+              color = (153, 60, 29, 255)
+              x1, x2 = pad, size - pad
+              y1, y2 = pad + size//10, size - pad - size//10
+              ymid = y1 + (y2 - y1) // 2
+              draw.rectangle([x1, y1, x1+thick, y2], fill=color)
+              draw.rectangle([x2-thick, y1, x2, y2], fill=color)
+              draw.line([x1+thick//2, y1, (x1+x2)//2, ymid], fill=color, width=thick)
+              draw.line([x2-thick//2, y1, (x1+x2)//2, ymid], fill=color, width=thick)
+              img.save(path, 'PNG')
+              print(f"Icon {size}px -> {path}")
+
+          base = 'twa-app/app/src/main/res'
+          make_icon(48,  f'{base}/mipmap-mdpi/ic_launcher.png')
+          make_icon(72,  f'{base}/mipmap-hdpi/ic_launcher.png')
+          make_icon(96,  f'{base}/mipmap-xhdpi/ic_launcher.png')
+          make_icon(144, f'{base}/mipmap-xxhdpi/ic_launcher.png')
+          make_icon(192, f'{base}/mipmap-xxxhdpi/ic_launcher.png')
+          PYEOF
+
+      - name: Create project structure
         run: |
           mkdir -p twa-app/app/src/main/res/values
           mkdir -p twa-app/app/src/main/res/xml
           mkdir -p twa-app/app/src/main/res/drawable
-          mkdir -p twa-app/app/src/main/res/mipmap-hdpi
-          mkdir -p twa-app/app/src/main/res/mipmap-mdpi
-          mkdir -p twa-app/app/src/main/res/mipmap-xhdpi
-          mkdir -p twa-app/app/src/main/res/mipmap-xxhdpi
-          mkdir -p twa-app/app/src/main/res/mipmap-xxxhdpi
 
-          cp icon-192.png twa-app/app/src/main/res/mipmap-hdpi/ic_launcher.png
-          cp icon-192.png twa-app/app/src/main/res/mipmap-mdpi/ic_launcher.png
-          cp icon-192.png twa-app/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          cp icon-192.png twa-app/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-          cp icon-512.png twa-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-
-      - name: Write Gradle files
+      - name: Write settings.gradle
         run: |
-          cat > twa-app/settings.gradle << 'HEREDOC'
+          cat > twa-app/settings.gradle << 'EOF'
           pluginManagement {
-            repositories {
-              google()
-              mavenCentral()
-              gradlePluginPortal()
-            }
+            repositories { google(); mavenCentral(); gradlePluginPortal() }
           }
           dependencyResolutionManagement {
             repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-            repositories {
-              google()
-              mavenCentral()
-            }
+            repositories { google(); mavenCentral() }
           }
           rootProject.name = "MapaDeGastos"
           include ':app'
-          HEREDOC
+          EOF
 
-          cat > twa-app/build.gradle << 'HEREDOC'
+      - name: Write build.gradle (root)
+        run: |
+          cat > twa-app/build.gradle << 'EOF'
           plugins {
             id 'com.android.application' version '8.2.2' apply false
           }
-          HEREDOC
+          EOF
 
-          cat > twa-app/gradle.properties << 'HEREDOC'
+      - name: Write gradle.properties
+        run: |
+          cat > twa-app/gradle.properties << 'EOF'
           android.useAndroidX=true
           android.enableJetifier=true
           org.gradle.jvmargs=-Xmx2048m
-          HEREDOC
+          EOF
 
-          cat > twa-app/app/build.gradle << 'HEREDOC'
-          plugins {
-            id 'com.android.application'
-          }
+      - name: Write app build.gradle
+        run: |
+          cat > twa-app/app/build.gradle << 'EOF'
+          plugins { id 'com.android.application' }
           android {
             namespace 'br.com.mapadegastos.app'
             compileSdk 34
@@ -119,11 +143,11 @@ jobs:
           dependencies {
             implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
           }
-          HEREDOC
+          EOF
 
-      - name: Write AndroidManifest
+      - name: Write AndroidManifest.xml
         run: |
-          cat > twa-app/app/src/main/AndroidManifest.xml << 'HEREDOC'
+          cat > twa-app/app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
@@ -164,47 +188,47 @@ jobs:
               </provider>
             </application>
           </manifest>
-          HEREDOC
+          EOF
 
       - name: Write resource files
         run: |
-          cat > twa-app/app/src/main/res/values/strings.xml << 'HEREDOC'
+          cat > twa-app/app/src/main/res/values/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
             <string name="app_name">Mapa de Gastos</string>
           </resources>
-          HEREDOC
+          EOF
 
-          cat > twa-app/app/src/main/res/values/colors.xml << 'HEREDOC'
+          cat > twa-app/app/src/main/res/values/colors.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
             <color name="colorPrimary">#F8F7F4</color>
             <color name="backgroundColor">#F8F7F4</color>
           </resources>
-          HEREDOC
+          EOF
 
-          cat > twa-app/app/src/main/res/values/styles.xml << 'HEREDOC'
+          cat > twa-app/app/src/main/res/values/styles.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
             <style name="Theme.LauncherActivity" parent="android:Theme.NoTitleBar.Fullscreen">
               <item name="android:windowBackground">@color/backgroundColor</item>
             </style>
           </resources>
-          HEREDOC
+          EOF
 
-          cat > twa-app/app/src/main/res/xml/file_paths.xml << 'HEREDOC'
+          cat > twa-app/app/src/main/res/xml/file_paths.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <paths>
             <external-path name="external_files" path="." />
           </paths>
-          HEREDOC
+          EOF
 
-          cat > twa-app/app/src/main/res/drawable/splash.xml << 'HEREDOC'
+          cat > twa-app/app/src/main/res/drawable/splash.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android">
             <solid android:color="#F8F7F4"/>
           </shape>
-          HEREDOC
+          EOF
 
       - name: Setup Gradle wrapper
         working-directory: twa-app
