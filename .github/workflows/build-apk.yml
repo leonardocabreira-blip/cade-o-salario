@@ -3,9 +3,6 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
-env:
-  KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -38,37 +35,37 @@ jobs:
             -keypass "${{ secrets.KEYSTORE_PASSWORD }}" \
             -dname "CN=Mapa de Gastos, OU=App, O=MapaDeGastos, L=Porto Alegre, ST=RS, C=BR"
 
-      - name: Generate PNG icons
+      - name: Get SHA256 fingerprint
+        id: fingerprint
+        run: |
+          FP=$(keytool -list -v -keystore keystore.jks -alias mapadegastos \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" 2>/dev/null \
+            | grep "SHA256:" | awk '{print $2}')
+          echo "fingerprint=$FP" >> $GITHUB_OUTPUT
+          echo "SHA256 fingerprint: $FP"
+
+      - name: Process app icon
         run: |
           python3 << 'PYEOF'
-          from PIL import Image, ImageDraw
+          from PIL import Image
           import os
 
-          def make_icon(size, path):
-              os.makedirs(os.path.dirname(path), exist_ok=True)
-              img = Image.new('RGBA', (size, size), (248, 247, 244, 255))
-              draw = ImageDraw.Draw(img)
-              m = size // 8
-              draw.rounded_rectangle([m, m, size-m, size-m], radius=size//6, fill=(224, 222, 214, 255))
-              pad = size // 4
-              thick = max(3, size // 14)
-              color = (153, 60, 29, 255)
-              x1, x2 = pad, size - pad
-              y1, y2 = pad + size//10, size - pad - size//10
-              ymid = y1 + (y2 - y1) // 2
-              draw.rectangle([x1, y1, x1+thick, y2], fill=color)
-              draw.rectangle([x2-thick, y1, x2, y2], fill=color)
-              draw.line([x1+thick//2, y1, (x1+x2)//2, ymid], fill=color, width=thick)
-              draw.line([x2-thick//2, y1, (x1+x2)//2, ymid], fill=color, width=thick)
-              img.save(path, 'PNG')
-              print(f"Icon {size}px -> {path}")
+          src = 'icon-512.png'
+          if not os.path.exists(src):
+              # Fallback: generate simple icon
+              img = Image.new('RGB', (512, 512), (30, 100, 180))
+          else:
+              img = Image.open(src).convert('RGB')
+              w, h = img.size
+              m = min(w, h)
+              img = img.crop(((w-m)//2, (h-m)//2, (w+m)//2, (h+m)//2))
 
           base = 'twa-app/app/src/main/res'
-          make_icon(48,  f'{base}/mipmap-mdpi/ic_launcher.png')
-          make_icon(72,  f'{base}/mipmap-hdpi/ic_launcher.png')
-          make_icon(96,  f'{base}/mipmap-xhdpi/ic_launcher.png')
-          make_icon(144, f'{base}/mipmap-xxhdpi/ic_launcher.png')
-          make_icon(192, f'{base}/mipmap-xxxhdpi/ic_launcher.png')
+          sizes = [(48,'mipmap-mdpi'),(72,'mipmap-hdpi'),(96,'mipmap-xhdpi'),(144,'mipmap-xxhdpi'),(192,'mipmap-xxxhdpi')]
+          for size, folder in sizes:
+              os.makedirs(f'{base}/{folder}', exist_ok=True)
+              img.resize((size, size), Image.LANCZOS).save(f'{base}/{folder}/ic_launcher.png', 'PNG')
+              print(f"Icon {size}px OK")
           PYEOF
 
       - name: Create project structure
@@ -91,7 +88,7 @@ jobs:
           include ':app'
           EOF
 
-      - name: Write build.gradle (root)
+      - name: Write root build.gradle
         run: |
           cat > twa-app/build.gradle << 'EOF'
           plugins {
@@ -202,8 +199,8 @@ jobs:
           cat > twa-app/app/src/main/res/values/colors.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-            <color name="colorPrimary">#F8F7F4</color>
-            <color name="backgroundColor">#F8F7F4</color>
+            <color name="colorPrimary">#1e64b4</color>
+            <color name="backgroundColor">#1e64b4</color>
           </resources>
           EOF
 
@@ -226,7 +223,7 @@ jobs:
           cat > twa-app/app/src/main/res/drawable/splash.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android">
-            <solid android:color="#F8F7F4"/>
+            <solid android:color="#1e64b4"/>
           </shape>
           EOF
 
@@ -240,7 +237,14 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Print fingerprint for assetlinks
+        run: |
+          echo "========================================"
+          echo "SHA256 fingerprint for assetlinks.json:"
+          echo "${{ steps.fingerprint.outputs.fingerprint }}"
+          echo "========================================"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
