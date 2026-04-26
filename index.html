@@ -197,7 +197,10 @@
       <span class="month-label" id="home-month-label"></span>
       <button class="month-nav" onclick="changeMonth(1)">›</button>
     </div>
-    <div class="swipe-hint">deslize para mudar o mês</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:-8px;margin-bottom:8px;">
+      <div class="swipe-hint" style="margin:0;">deslize para mudar o mês</div>
+      <button onclick="deleteMonthTransactions()" style="background:none;border:none;font-size:12px;color:var(--expense);font-family:'Sora',sans-serif;padding:0;cursor:pointer;opacity:.7;">🗑 apagar mês</button>
+    </div>
     <div class="metric-grid" id="home-metrics"></div>
     <!-- Filter by origin -->
     <div class="filter-bar" id="origin-filter">
@@ -996,6 +999,22 @@ async function deleteTransaction(){
   }finally{
     setSyncing(false);
   }
+}
+
+// ─── DELETE MONTH ────────────────────────────────────────────────────────────
+async function deleteMonthTransactions(){
+  const label = MONTHS[state.currentMonth]+' '+state.currentYear;
+  const txs = getTxsForMonth(state.currentMonth, state.currentYear);
+  if(!txs.length){ showToast('Nenhuma transação neste mês'); return; }
+  if(!confirm(`Apagar todas as ${txs.length} transações de ${label}?\n\nEssa ação não pode ser desfeita.`)) return;
+  setSyncing(true);
+  const ids = txs.map(t=>t.id);
+  const{error}=await supa.from('transactions').delete().in('id', ids).eq('user_id', state.user.id);
+  setSyncing(false, !!error);
+  if(error){ showToast('Erro ao apagar'); return; }
+  state.transactions = state.transactions.filter(t => !ids.includes(t.id));
+  renderHome();
+  showToast(`✓ ${ids.length} transações apagadas!`);
 }
 
 init();
