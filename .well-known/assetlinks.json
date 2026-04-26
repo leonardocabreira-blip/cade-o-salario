@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "br.com.mapadegastos.app",
+      "sha256_cert_fingerprints": [
+        "60:7A:C2:16:A7:40:17:31:B9:38:4D:2A:22:19:C8:DD:A3:F8:49:25:23:9B:81:40:32:59:19:88:24:43:43:1A"
+      ]
+    }
+  }
+]
