@@ -122,7 +122,7 @@
     .ann-saldo{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;min-width:76px;text-align:right;}
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center;}
     .modal-overlay.open{display:flex;}
-    .modal-box{background:var(--surface);border-radius:var(--r) var(--r) 0 0;padding:1.5rem 1.25rem;width:100%;max-width:430px;max-height:85dvh;overflow-y:auto;}
+    .modal-box{background:var(--surface);border-radius:var(--r) var(--r) 0 0;padding:1.5rem 1.25rem 2.5rem;width:100%;max-width:430px;max-height:85dvh;overflow-y:auto;}
     .modal-handle{width:40px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 1.25rem;}
     .modal-title{font-size:16px;font-weight:600;margin-bottom:4px;}
     .modal-sub{font-size:13px;color:var(--text3);margin-bottom:1rem;}
@@ -130,7 +130,7 @@
     .cat-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.25rem;}
     .cat-chip{padding:7px 14px;border-radius:20px;font-size:13px;border:0.5px solid var(--border);background:var(--surface2);color:var(--text2);transition:all .15s;font-weight:500;}
     .cat-chip.selected{background:var(--accent-bg);color:var(--accent);border-color:var(--accent);}
-    .modal-btns{display:flex;gap:8px;}
+    .modal-btns{display:flex;gap:8px;margin-bottom:env(safe-area-inset-bottom,16px);}
     .modal-btn{flex:1;padding:13px;border-radius:var(--r-sm);font-size:14px;font-weight:600;border:0.5px solid var(--border);}
     .modal-btn.primary{background:var(--text);color:var(--bg);border-color:var(--text);}
     .modal-btn.secondary{background:var(--surface2);color:var(--text2);}
@@ -287,7 +287,7 @@
     <div id="import-preview" style="display:none;">
       <div id="dup-banner" class="dup-banner ok"></div>
       <div class="card" id="import-list"></div>
-      <div style="padding-bottom:1rem;">
+      <div style="padding-bottom:5rem;">
         <button class="btn-primary" onclick="confirmImport()">Confirmar e salvar tudo</button>
         <button class="btn-outline" onclick="cancelImport()">Cancelar</button>
       </div>
