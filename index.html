@@ -684,7 +684,7 @@ async function processPdfWithAI(file){
       const use=confirm(`✦ IA detectou vencimento em ${formatted}.\n\nLançar todas as transações nessa data?\n\nOK = Sim, usar data de vencimento\nCancelar = Não, usar data de cada compra`);
       if(use) useDate=data.due_date;
     }
-    const transactions=(data.transactions||[]).map(t=>({...t,date:useDate||t.date,suggestedCat:t.category,origin:data.source||detectOrigin(file.name,'credit')}));
+    const transactions=(data.transactions||[]).map(t=>({desc:t.description||t.desc||'',val:Number(t.amount||t.val||0),date:useDate||t.date||'',suggestedCat:t.category||t.cat||'Outros',origin:data.source||t.origin||detectOrigin(file.name,'credit')}));
     zone.innerHTML=origHTML;setSyncing(false);showImportPreview(transactions);
   }catch(e){zone.innerHTML=origHTML;setSyncing(false,true);showToast('Erro ao processar PDF: '+e.message);document.getElementById('file-input').value='';}
 }
