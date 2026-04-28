@@ -618,6 +618,7 @@ function detectOrigin(desc,source){
 }
 
 async function saveTransaction(){
+  if(!state.user){showToast('Sessão expirada. Faça login novamente.');return;}
   const desc=document.getElementById('inp-desc').value.trim();const val=parseFloat(document.getElementById('inp-val').value);
   const date=document.getElementById('inp-date').value;const cat=document.getElementById('inp-cat').value;
   const origin=document.getElementById('inp-origin').value;
@@ -744,16 +745,34 @@ function showImportPreview(parsed){
 }
 
 async function confirmImport(){
-  const toAdd=state.pendingImport.filter(t=>!t.isDup);if(!toAdd.length){cancelImport();return;}
-  setSyncing(true);
-  const rows=toAdd.map(t=>({user_id:state.user.id,description:t.desc,amount:t.val,date:t.date,category:t.cat,ai_categorized:t.aiCat,source:'import',origin:t.origin||'other'}));
-  const{data,error}=await supa.from('transactions').insert(rows).select();
-  setSyncing(false,!!error);
-  if(error){showToast('Erro ao salvar');return;}
-  const saved=(data||[]).map(r=>({id:r.id,desc:r.description,val:Number(r.amount),date:r.date,cat:r.category,aiCat:r.ai_categorized,origin:r.origin||'other'}));
-  state.transactions.push(...saved);state.pendingImport=[];
-  document.getElementById('import-preview').style.display='none';document.getElementById('file-input').value='';
-  showToast(`✓ ${toAdd.length} transações salvas!`);
+  try{
+    if(!state.user){showToast('Sessão expirada. Faça login novamente.');return;}
+    const toAdd=state.pendingImport.filter(t=>!t.isDup);
+    if(!toAdd.length){cancelImport();return;}
+    setSyncing(true);
+    const rows=toAdd.map(t=>({
+      user_id:state.user.id,
+      description:t.desc||'',
+      amount:Number(t.val)||0,
+      date:t.date||new Date().toISOString().slice(0,10),
+      category:t.cat||'Outros',
+      ai_categorized:true,
+      source:'import',
+      origin:t.origin||'other'
+    }));
+    const{data,error}=await supa.from('transactions').insert(rows).select();
+    setSyncing(false,!!error);
+    if(error){showToast('Erro: '+error.message);return;}
+    const saved=(data||[]).map(r=>({id:r.id,desc:r.description,val:Number(r.amount),date:r.date,cat:r.category,aiCat:r.ai_categorized,origin:r.origin||'other'}));
+    state.transactions.push(...saved);
+    state.pendingImport=[];
+    document.getElementById('import-preview').style.display='none';
+    document.getElementById('file-input').value='';
+    showToast('✓ '+toAdd.length+' transações salvas!');
+  }catch(e){
+    setSyncing(false,true);
+    showToast('Erro: '+e.message);
+  }
 }
 
 function cancelImport(){state.pendingImport=[];document.getElementById('import-preview').style.display='none';document.getElementById('file-input').value='';}
@@ -834,6 +853,7 @@ function handleModalClick(e){if(e.target===document.getElementById('cat-modal'))
 function closeModal(){document.getElementById('cat-modal').classList.remove('open');}
 
 async function confirmCatEdit(){
+  if(!state.user){showToast('Sessão expirada. Faça login novamente.');return;}
   const{source,id}=state.editingTxId||{};const newCat=state.selectedCat;if(!newCat){closeModal();return;}
   if(source==='tx'){const tx=state.transactions.find(t=>t.id===id);if(tx){await learnFrom(tx.desc,newCat);tx.cat=newCat;tx.aiCat=false;await supa.from('transactions').update({category:newCat,ai_categorized:false}).eq('id',id);renderHome();}}
   else if(source==='import'){const tx=state.pendingImport.find(t=>t.id===id);if(tx){await learnFrom(tx.desc,newCat);tx.cat=newCat;showImportPreview(state.pendingImport);}}
