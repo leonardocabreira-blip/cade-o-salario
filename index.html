@@ -277,13 +277,13 @@
   <!-- EXTRATO -->
   <div id="screen-import" class="screen">
     <div class="section-title">Importar extrato</div>
-    <label class="upload-zone" for="file-input">
-      <input type="file" id="file-input" accept=".csv,.ofx,.pdf" onchange="handleFileSelect(this)"/>
+    <div class="upload-zone" onclick="document.getElementById('file-input').click()" style="cursor:pointer;">
+      <input type="file" id="file-input" accept=".csv,.ofx,.pdf" onchange="handleFileSelect(this)" style="display:none;"/>
       <div style="font-size:32px;margin-bottom:10px;">📄</div>
       <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Toque para importar</div>
       <div style="font-size:13px;color:var(--text3);">PDF, CSV ou OFX de extrato</div>
       <div style="font-size:11px;color:var(--income);margin-top:6px;">✦ PDF lido automaticamente por IA</div>
-    </label>
+    </div>
     <div id="import-preview" style="display:none;">
       <div id="dup-banner" class="dup-banner ok"></div>
       <div class="card" id="import-list"></div>
