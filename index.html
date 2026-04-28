@@ -286,11 +286,12 @@
     </div>
     <div id="import-preview" style="display:none;">
       <div id="dup-banner" class="dup-banner ok"></div>
-      <div class="card" id="import-list"></div>
-      <div style="padding-bottom:5rem;">
-        <button class="btn-primary" onclick="confirmImport()">Confirmar e salvar tudo</button>
-        <button class="btn-outline" onclick="cancelImport()">Cancelar</button>
-      </div>
+      <div class="card" id="import-list" style="margin-bottom:140px;"></div>
+    </div>
+    <!-- Fixed import action bar -->
+    <div id="import-action-bar" style="display:none;position:fixed;bottom:65px;left:50%;transform:translateX(-50%);width:calc(100% - 2rem);max-width:398px;z-index:60;background:var(--bg);padding:8px 0;">
+      <button class="btn-primary" style="margin-bottom:6px;" onclick="confirmImport()">Confirmar e salvar tudo</button>
+      <button class="btn-outline" style="margin-bottom:0;" onclick="cancelImport()">Cancelar</button>
     </div>
   </div>
 
@@ -742,6 +743,7 @@ function showImportPreview(parsed){
     return`<div class="tx-row"><div class="tx-icon" style="background:var(--income-bg);font-size:12px;color:var(--income);">✦</div><div class="tx-info"><div class="tx-desc">${escHtml(t.desc)}</div><div class="tx-meta"><span class="tx-origin-tag ${orig.cls}">${orig.icon} ${orig.label}</span><span class="tx-cat-tag" style="color:var(--income);">→ ${escHtml(t.cat)}</span><button class="edit-btn" onclick="openImportModal('${t.id}','${escHtml(t.desc)}','${escHtml(t.cat)}')">editar</button></div></div><div class="tx-val ${t.val>=0?'green':'red'}">${t.val>=0?'+':''}R$ ${fmtNum(Math.abs(t.val))}</div></div>`;
   }).join('');
   document.getElementById('import-preview').style.display='block';
+  document.getElementById('import-action-bar').style.display='block';
 }
 
 async function confirmImport(){
@@ -767,6 +769,7 @@ async function confirmImport(){
     state.transactions.push(...saved);
     state.pendingImport=[];
     document.getElementById('import-preview').style.display='none';
+    document.getElementById('import-action-bar').style.display='none';
     document.getElementById('file-input').value='';
     showToast('✓ '+toAdd.length+' transações salvas!');
   }catch(e){
@@ -775,7 +778,7 @@ async function confirmImport(){
   }
 }
 
-function cancelImport(){state.pendingImport=[];document.getElementById('import-preview').style.display='none';document.getElementById('file-input').value='';}
+function cancelImport(){state.pendingImport=[];document.getElementById('import-preview').style.display='none';document.getElementById('import-action-bar').style.display='none';document.getElementById('file-input').value='';}
 
 // ─── REPORT ──────────────────────────────────────────────────────────────────
 let donutInst=null,barInst=null;
