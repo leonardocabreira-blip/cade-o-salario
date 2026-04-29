@@ -748,8 +748,10 @@ function showImportPreview(parsed){
 
 async function confirmImport(){
   try{
+    showToast('Iniciando salvamento...');
     if(!state.user){showToast('Sessão expirada. Faça login novamente.');return;}
     const toAdd=state.pendingImport.filter(t=>!t.isDup);
+    showToast('Salvando '+toAdd.length+' transações...');
     if(!toAdd.length){cancelImport();return;}
     setSyncing(true);
     const rows=toAdd.map(t=>({
@@ -857,7 +859,10 @@ function closeModal(){document.getElementById('cat-modal').classList.remove('ope
 
 async function confirmCatEdit(){
   if(!state.user){showToast('Sessão expirada. Faça login novamente.');return;}
-  const{source,id}=state.editingTxId||{};const newCat=state.selectedCat;if(!newCat){closeModal();return;}
+  const{source,id}=state.editingTxId||{};
+  const newCat=state.selectedCat;
+  showToast('Salvando: '+newCat+'...');
+  if(!newCat){closeModal();return;}
   if(source==='tx'){const tx=state.transactions.find(t=>t.id===id);if(tx){await learnFrom(tx.desc,newCat);tx.cat=newCat;tx.aiCat=false;await supa.from('transactions').update({category:newCat,ai_categorized:false}).eq('id',id);renderHome();}}
   else if(source==='import'){const tx=state.pendingImport.find(t=>t.id===id);if(tx){await learnFrom(tx.desc,newCat);tx.cat=newCat;showImportPreview(state.pendingImport);}}
   closeModal();showToast('✓ Categoria corrigida — IA aprendeu!');
