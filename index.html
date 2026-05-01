@@ -769,22 +769,36 @@ async function confirmImport(){
   });
   showToast('Salvando '+rows.length+'...');
   try{
-    const{data,error}=await supa.from('transactions').insert(rows).select();
+    // Insert without select to avoid timeout
+    const{error}=await supa.from('transactions').insert(rows);
     setSyncing(false,!!error);
     if(error){
-      showToast('Erro Supabase: '+JSON.stringify(error).slice(0,100));
+      showToast('Erro: '+JSON.stringify(error).slice(0,120));
       return;
     }
-    const saved=(data||[]).map(r=>({id:r.id,desc:r.description,val:Number(r.amount),date:r.date,cat:r.category,aiCat:r.ai_categorized,origin:r.origin||'other'}));
+    // Add to local state manually
+    const now=new Date().toISOString();
+    const saved=rows.map(r=>({
+      id:Math.random().toString(36).slice(2),
+      desc:r.description,
+      val:Number(r.amount),
+      date:r.date,
+      cat:r.category,
+      aiCat:true,
+      origin:r.origin||'other'
+    }));
     state.transactions.push(...saved);
     state.pendingImport=[];
-    document.getElementById('import-preview').style.display='none';
-    document.getElementById('import-action-bar').style.display='none';
+    const prev=document.getElementById('import-preview');
+    const bar=document.getElementById('import-action-bar');
+    if(prev) prev.style.display='none';
+    if(bar) bar.style.display='none';
     document.getElementById('file-input').value='';
-    showToast('✓ '+saved.length+' salvas!');
+    showToast('✓ '+saved.length+' transações salvas!');
+    renderHome();
   }catch(e){
     setSyncing(false,true);
-    showToast('Exceção: '+e.message.slice(0,100));
+    showToast('Erro: '+e.message.slice(0,120));
   }
 }
 
