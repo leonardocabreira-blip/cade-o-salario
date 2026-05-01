@@ -747,41 +747,45 @@ function showImportPreview(parsed){
 }
 
 async function confirmImport(){
-  showToast('Iniciando...');
   if(!state.user){showToast('Sem usuário!');return;}
   const toAdd=state.pendingImport.filter(t=>!t.isDup);
   if(!toAdd.length){cancelImport();return;}
-  showToast('Salvando '+toAdd.length+'...');
   setSyncing(true);
-  // Insert one by one to find problem row
-  let saved=[];
-  let errs=[];
-  for(const t of toAdd){
-    const row={
+  // Build all rows with strict sanitization
+  const rows=toAdd.map(t=>{
+    const d=String(t.date||'').trim();
+    const validDate=/^\d{4}-\d{2}-\d{2}$/.test(d)?d:new Date().toISOString().slice(0,10);
+    const amt=parseFloat(t.val);
+    return{
       user_id:state.user.id,
-      description:String(t.desc||'sem descrição'),
-      amount:Number(t.val)||0,
-      date:String(t.date||new Date().toISOString().slice(0,10)),
-      category:String(t.cat||'Outros'),
+      description:String(t.desc||'Importado').slice(0,200),
+      amount:isNaN(amt)?0:amt,
+      date:validDate,
+      category:String(t.cat||'Outros').slice(0,100),
       ai_categorized:true,
       source:'import',
-      origin:String(t.origin||'other')
+      origin:String(t.origin||'other').slice(0,50)
     };
-    const{data,error}=await supa.from('transactions').insert(row).select().single();
-    if(error){errs.push(error.message);break;}
-    else saved.push({id:data.id,desc:data.description,val:Number(data.amount),date:data.date,cat:data.category,aiCat:data.ai_categorized,origin:data.origin||'other'});
+  });
+  showToast('Salvando '+rows.length+'...');
+  try{
+    const{data,error}=await supa.from('transactions').insert(rows).select();
+    setSyncing(false,!!error);
+    if(error){
+      showToast('Erro Supabase: '+JSON.stringify(error).slice(0,100));
+      return;
+    }
+    const saved=(data||[]).map(r=>({id:r.id,desc:r.description,val:Number(r.amount),date:r.date,cat:r.category,aiCat:r.ai_categorized,origin:r.origin||'other'}));
+    state.transactions.push(...saved);
+    state.pendingImport=[];
+    document.getElementById('import-preview').style.display='none';
+    document.getElementById('import-action-bar').style.display='none';
+    document.getElementById('file-input').value='';
+    showToast('✓ '+saved.length+' salvas!');
+  }catch(e){
+    setSyncing(false,true);
+    showToast('Exceção: '+e.message.slice(0,100));
   }
-  setSyncing(false,errs.length>0);
-  if(errs.length>0){
-    showToast('ERRO: '+errs[0].slice(0,80));
-    return;
-  }
-  state.transactions.push(...saved);
-  state.pendingImport=[];
-  document.getElementById('import-preview').style.display='none';
-  document.getElementById('import-action-bar').style.display='none';
-  document.getElementById('file-input').value='';
-  showToast('✓ '+saved.length+' salvas!');
 }
 
 function cancelImport(){state.pendingImport=[];document.getElementById('import-preview').style.display='none';document.getElementById('import-action-bar').style.display='none';document.getElementById('file-input').value='';}
