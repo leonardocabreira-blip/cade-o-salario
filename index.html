@@ -747,59 +747,82 @@ function showImportPreview(parsed){
 }
 
 async function confirmImport(){
-  if(!state.user){showToast('Sem usuário!');return;}
+  if(!state.user){alert('Sessão expirada. Faça login.');return;}
   const toAdd=state.pendingImport.filter(t=>!t.isDup);
   if(!toAdd.length){cancelImport();return;}
+
   setSyncing(true);
-  // Build all rows with strict sanitization
-  const rows=toAdd.map(t=>{
-    const d=String(t.date||'').trim();
-    const validDate=/^\d{4}-\d{2}-\d{2}$/.test(d)?d:new Date().toISOString().slice(0,10);
-    const amt=parseFloat(t.val);
-    return{
-      user_id:state.user.id,
-      description:String(t.desc||'Importado').slice(0,200),
-      amount:isNaN(amt)?0:amt,
-      date:validDate,
-      category:String(t.cat||'Outros').slice(0,100),
-      ai_categorized:true,
-      source:'import',
-      origin:String(t.origin||'other').slice(0,50)
-    };
-  });
-  showToast('Salvando '+rows.length+'...');
-  try{
-    // Insert without select to avoid timeout
-    const{error}=await supa.from('transactions').insert(rows);
-    setSyncing(false,!!error);
-    if(error){
-      showToast('Erro: '+JSON.stringify(error).slice(0,120));
-      return;
-    }
-    // Add to local state manually
-    const now=new Date().toISOString();
-    const saved=rows.map(r=>({
-      id:Math.random().toString(36).slice(2),
-      desc:r.description,
-      val:Number(r.amount),
-      date:r.date,
-      cat:r.category,
-      aiCat:true,
-      origin:r.origin||'other'
-    }));
-    state.transactions.push(...saved);
-    state.pendingImport=[];
-    const prev=document.getElementById('import-preview');
-    const bar=document.getElementById('import-action-bar');
-    if(prev) prev.style.display='none';
-    if(bar) bar.style.display='none';
-    document.getElementById('file-input').value='';
-    showToast('✓ '+saved.length+' transações salvas!');
-    renderHome();
-  }catch(e){
-    setSyncing(false,true);
-    showToast('Erro: '+e.message.slice(0,120));
+
+  // Refresh session to get fresh token
+  const sess=await supa.auth.getSession();
+  if(!sess.data.session){
+    alert('SESSÃO INVÁLIDA - faça logout e login novamente');
+    setSyncing(false);
+    return;
   }
+
+  // Try just the FIRST transaction with maximum diagnostic
+  const t=toAdd[0];
+  const row={
+    user_id:state.user.id,
+    description:String(t.desc||'Importado').substring(0,200),
+    amount:parseFloat(t.val)||0,
+    date:String(t.date||new Date().toISOString().slice(0,10)),
+    category:String(t.cat||'Outros').substring(0,100),
+    ai_categorized:true,
+    source:'import',
+    origin:String(t.origin||'other')
+  };
+
+  let result;
+  try{
+    result=await supa.from('transactions').insert(row).select();
+  }catch(e){
+    setSyncing(false);
+    alert('EXCEÇÃO: '+e.message+'\n\nDADOS:\n'+JSON.stringify(row,null,2));
+    return;
+  }
+
+  setSyncing(false);
+
+  if(result.error){
+    alert('ERRO SUPABASE:\nCódigo: '+result.error.code+'\nMensagem: '+result.error.message+'\nDetalhes: '+result.error.details+'\nHint: '+result.error.hint+'\n\nDADOS ENVIADOS:\n'+JSON.stringify(row,null,2));
+    return;
+  }
+
+  if(!result.data||result.data.length===0){
+    alert('SEM ERRO MAS SEM DADOS RETORNADOS\n\nResult: '+JSON.stringify(result,null,2)+'\n\nDADOS ENVIADOS:\n'+JSON.stringify(row,null,2));
+    return;
+  }
+
+  alert('SUCESSO! '+result.data.length+' linha inserida\n\n'+JSON.stringify(result.data[0],null,2));
+
+  // Now save the rest
+  const rest=toAdd.slice(1).map(t=>({
+    user_id:state.user.id,
+    description:String(t.desc||'Importado').substring(0,200),
+    amount:parseFloat(t.val)||0,
+    date:String(t.date||new Date().toISOString().slice(0,10)),
+    category:String(t.cat||'Outros').substring(0,100),
+    ai_categorized:true,
+    source:'import',
+    origin:String(t.origin||'other')
+  }));
+  if(rest.length>0){
+    const r2=await supa.from('transactions').insert(rest).select();
+    if(r2.error) alert('ERRO no resto: '+r2.error.message);
+  }
+
+  state.pendingImport=[];
+  const prev=document.getElementById('import-preview');
+  const bar=document.getElementById('import-action-bar');
+  if(prev) prev.style.display='none';
+  if(bar) bar.style.display='none';
+  document.getElementById('file-input').value='';
+  await loadUserData();
+  renderHome();
+  showToast('Importação concluída!');
+  renderHome();
 }
 
 function cancelImport(){state.pendingImport=[];document.getElementById('import-preview').style.display='none';document.getElementById('import-action-bar').style.display='none';document.getElementById('file-input').value='';}
