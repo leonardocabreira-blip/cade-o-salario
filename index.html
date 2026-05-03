@@ -432,6 +432,7 @@
   </div>
 </div>
 
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(r=>{for(let s of r)s.unregister();});}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
