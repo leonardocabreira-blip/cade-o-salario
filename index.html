@@ -752,12 +752,6 @@ async function confirmImport(){
   const toAdd = state.pendingImport.filter(t => !t.isDup);
   if(!toAdd.length){ cancelImport(); return; }
 
-  const { data: sessData } = await supa.auth.getSession();
-  if(!sessData.session){
-    showToast('Sessão inválida. Faça logout e login novamente.');
-    return;
-  }
-
   setSyncing(true);
 
   const today = new Date().toISOString().slice(0, 10);
