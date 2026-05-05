@@ -464,14 +464,14 @@ const MONTHS_SHORT=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out',
 async function init(){
   if(localStorage.getItem('cds_theme')==='dark') applyTheme(true);
   const{data:{session}}=await supa.auth.getSession();
-  if(session) await onLogin(session.user); else showAuth();
+  if(session) await onLogin(session.user,session);
   supa.auth.onAuthStateChange(async(event,session)=>{
-    if(event==='SIGNED_IN'&&session) await onLogin(session.user);
+    if(event==='SIGNED_IN'&&session) await onLogin(session.user,session);
     if(event==='SIGNED_OUT') showAuth();
   });
 }
 
-async function onLogin(user){state.user=user;await loadUserData();hideLoading();showApp();renderHome();populateCatSelect();}
+async function onLogin(user,session){state.user=user;if(session)state.accessToken=session.access_token;await loadUserData();hideLoading();showApp();renderHome();populateCatSelect();}
 function showAuth(){hideLoading();document.getElementById('auth-screen').classList.add('active');document.getElementById('app-screen').classList.remove('active');}
 function showApp(){
   document.getElementById('auth-screen').classList.remove('active');document.getElementById('app-screen').classList.add('active');
@@ -777,10 +777,11 @@ const toAdd = state.pendingImport.filter(t => !t.isDup);
   });
 
 const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo esgotado - tente novamente')), 10000));
-const { error } = await Promise.race([
-  supa.from('transactions').insert(rows),
+const res = await Promise.race([
+  fetch(SUPA_URL+'/rest/v1/transactions',{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+state.accessToken,'Prefer':'return=minimal'},body:JSON.stringify(rows)}),
   timeout
-]).catch(e => ({ error: e }));
+]).catch(e=>({ok:false,text:async()=>e.message}));
+const error = res.ok ? null : {message: await res.text()};
 
   setSyncing(false, !!error);
 
