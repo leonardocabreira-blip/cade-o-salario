@@ -777,11 +777,11 @@ const toAdd = state.pendingImport.filter(t => !t.isDup);
     };
   });
 
-  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo esgotado - tente novamente')), 10000));
-const { data, error } = await Promise.race([
-  supa.from('transactions').insert(rows).select(),
+const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo esgotado - tente novamente')), 10000));
+const { error } = await Promise.race([
+  supa.from('transactions').insert(rows),
   timeout
-]).catch(e => ({ data: null, error: e }));
+]).catch(e => ({ error: e }));
 
   setSyncing(false, !!error);
 
@@ -790,8 +790,8 @@ const { data, error } = await Promise.race([
     return;
   }
 
-  const saved = (data || []).map(r => ({
-    id: r.id,
+const saved = rows.map(r => ({
+    id: Math.random().toString(36).slice(2),
     desc: r.description,
     val: Number(r.amount),
     date: r.date,
