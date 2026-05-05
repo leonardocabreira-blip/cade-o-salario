@@ -773,7 +773,6 @@ const toAdd = state.pendingImport.filter(t => !t.isDup);
       category: String(t.cat || 'Outros').substring(0, 100),
       ai_categorized: true,
       source: 'import',
-      origin: String(t.origin || 'other'),
     };
   });
 
