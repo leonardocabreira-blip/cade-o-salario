@@ -777,7 +777,11 @@ const toAdd = state.pendingImport.filter(t => !t.isDup);
     };
   });
 
-  const { data, error } = await supa.from('transactions').insert(rows).select();
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo esgotado - tente novamente')), 10000));
+const { data, error } = await Promise.race([
+  supa.from('transactions').insert(rows).select(),
+  timeout
+]).catch(e => ({ data: null, error: e }));
 
   setSyncing(false, !!error);
 
