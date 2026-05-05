@@ -750,7 +750,8 @@ function showImportPreview(parsed){
 async function confirmImport(){
   if(!state.user){ showToast('Sessão expirada. Faça login novamente.'); return; }
 
-  const toAdd = state.pendingImport.filter(t => !t.isDup);
+const toAdd = state.pendingImport.filter(t => !t.isDup);
+  alert('Transações para salvar: ' + toAdd.length);
   if(!toAdd.length){ cancelImport(); return; }
 
   setSyncing(true);
