@@ -771,8 +771,9 @@ const toAdd = state.pendingImport.filter(t => !t.isDup);
       amount: safeVal,
       date: safeDate,
       category: String(t.cat || 'Outros').substring(0, 100),
-      ai_categorized: true,
+       ai_categorized: true,
       source: 'import',
+      origin: String(t.origin || 'other'),
     };
   });
 
