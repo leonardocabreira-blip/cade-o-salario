@@ -1,14 +1,8 @@
-[
-  {
-    "relation": [
-      "delegate_permission/common.handle_all_urls"
-    ],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "br.com.mapadegastos.app",
-      "sha256_cert_fingerprints": [
-        "60:7A:C2:16:A7:40:17:31:B9:38:4D:2A:22:19:C8:DD:A3:F8:49:25:23:9B:81:40:32:59:19:88:24:43:43:1A"
-      ]
-    }
-  }
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.mapa_de_gastos.twa",
+        "sha256_cert_fingerprints": ["AB:28:DE:EA:A4:18:E0:AD:A4:8E:30:6B:E3:38:D4:89:C8:B6:D0:CB:5C:A6:50:62:9F:9B:25:99:2C:67:9D:37"]
+      }
+    }]
