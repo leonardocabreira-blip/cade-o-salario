@@ -463,9 +463,12 @@ const MONTHS_SHORT=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out',
 // ─── INIT ────────────────────────────────────────────────────────────────────
 async function init(){
   if(localStorage.getItem('cds_theme')==='dark') applyTheme(true);
-  const sessionTimeout = new Promise(r=>setTimeout(()=>r({data:{session:null}}),5000));
-const{data:{session}}=await Promise.race([supa.auth.getSession(),sessionTimeout]);
-  if(session) await onLogin(session.user,session);
+  let session=null;
+try{
+  const t=await Promise.race([supa.auth.getSession(),new Promise(r=>setTimeout(()=>r(null),3000))]);
+  session=t?.data?.session||null;
+}catch(e){session=null;}
+  if(session) await onLogin(session.user,session); else showAuth();
   supa.auth.onAuthStateChange(async(event,session)=>{
     if(event==='SIGNED_IN'&&session) await onLogin(session.user,session);
     if(event==='SIGNED_OUT') showAuth();
