@@ -150,6 +150,19 @@
     ::-webkit-scrollbar{width:0;}
     @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .screen.active{animation:fadeIn .2s ease;}
+    .upgrade-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;align-items:flex-end;justify-content:center;}
+.upgrade-overlay.open{display:flex;}
+.upgrade-box{background:var(--surface);border-radius:var(--r) var(--r) 0 0;padding:1.5rem 1.25rem 2.5rem;width:100%;max-width:430px;max-height:90dvh;overflow-y:auto;}
+.upgrade-header{background:var(--text);border-radius:var(--r-sm);padding:1.25rem;text-align:center;margin-bottom:1.25rem;}
+.upgrade-title{font-size:18px;font-weight:600;color:var(--bg);margin-bottom:4px;}
+.upgrade-sub{font-size:13px;color:var(--text2);opacity:.7;}
+.upgrade-feature{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:14px;border-bottom:0.5px solid var(--border);}
+.upgrade-feature:last-of-type{border-bottom:none;margin-bottom:1rem;}
+.upgrade-plan{border:0.5px solid var(--border);border-radius:var(--r);padding:1rem;margin-bottom:10px;}
+.upgrade-plan.featured{border:2px solid var(--accent);position:relative;}
+.upgrade-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:11px;padding:2px 14px;border-radius:20px;white-space:nowrap;}
+.upgrade-price{font-size:24px;font-weight:600;font-family:'Space Mono',monospace;}
+.upgrade-old{font-size:12px;color:var(--text3);text-decoration:line-through;}
   </style>
 </head>
 <body>
@@ -397,7 +410,45 @@
     <div id="tx-modal-list"></div>
   </div>
 </div>
-
+<!-- MODAL UPGRADE -->
+<div class="upgrade-overlay" id="upgrade-modal" onclick="handleUpgradeClick(event)">
+  <div class="upgrade-box">
+    <div class="modal-handle"></div>
+    <div class="upgrade-header">
+      <div class="upgrade-title">🔓 Desbloqueie o Premium</div>
+      <div class="upgrade-sub">Importe extratos e deixe a IA trabalhar por você</div>
+    </div>
+    <div class="upgrade-feature"><span style="font-size:18px;">📄</span> Importação de extratos PDF</div>
+    <div class="upgrade-feature"><span style="font-size:18px;">🤖</span> Classificação automática por IA</div>
+    <div class="upgrade-feature"><span style="font-size:18px;">📊</span> Relatórios avançados</div>
+    <div class="upgrade-feature"><span style="font-size:18px;">🔄</span> Cancele quando quiser</div>
+    <div class="upgrade-plan featured" style="margin-top:1rem;">
+      <div class="upgrade-badge">🔥 LANÇAMENTO</div>
+      <div style="text-align:center;padding-top:8px;">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">Assinatura mensal — cartão</div>
+        <div class="upgrade-price">R$ 9,90<span style="font-size:13px;font-weight:400;font-family:'Sora',sans-serif;">/mês</span></div>
+        <div class="upgrade-old">R$ 19,90 após o lançamento</div>
+      </div>
+      <button class="btn-primary" style="margin-top:12px;margin-bottom:0;" id="btn-subscribe" onclick="startSubscription()">Assinar com cartão</button>
+    </div>
+    <div class="upgrade-plan">
+      <div style="text-align:center;">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">Acesso mensal — Pix</div>
+        <div class="upgrade-price" style="font-size:20px;">R$ 11,90<span style="font-size:13px;font-weight:400;font-family:'Sora',sans-serif;">/mês</span></div>
+        <div style="font-size:12px;color:var(--text3);">Renovação manual • sem recorrência</div>
+      </div>
+      <button class="btn-outline" style="margin-top:12px;margin-bottom:0;" id="btn-pix" onclick="startPix()">Pagar com Pix</button>
+    </div>
+    <div id="pix-qr-area" style="display:none;text-align:center;margin-top:1rem;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Escaneie o QR Code</div>
+      <img id="pix-qr-img" src="" alt="QR Code Pix" style="width:180px;height:180px;border-radius:var(--r-sm);"/>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px;">Após o pagamento, aguarde alguns segundos e recarregue o app.</div>
+      <div id="pix-code-box" style="background:var(--surface2);border-radius:var(--r-sm);padding:10px;margin-top:10px;font-size:11px;color:var(--text2);word-break:break-all;"></div>
+      <button onclick="copyPix()" style="margin-top:8px;background:var(--income-bg);color:var(--income);border:0.5px solid var(--income);border-radius:var(--r-sm);padding:8px 16px;font-size:13px;font-weight:500;">📋 Copiar código Pix</button>
+    </div>
+    <button onclick="closeUpgradeModal()" style="width:100%;background:none;border:none;color:var(--text3);font-size:14px;padding:12px;margin-top:8px;">Agora não</button>
+  </div>
+</div>
 <div id="toast"></div>
 
 <!-- MODAL EDITAR TRANSAÇÃO -->
@@ -442,7 +493,7 @@ const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
 
 // ─── STATE ──────────────────────────────────────────────────────────────────
 let state={
-  user:null, dark:false,
+  user:null, dark:false, plano:'gratuito',
   currentMonth:new Date().getMonth(), currentYear:new Date().getFullYear(),
   reportMonth:new Date().getMonth(), reportYear:new Date().getFullYear(), reportYear2:new Date().getFullYear(),
   currentType:'expense', showAllTx:false, originFilter:'all',
@@ -475,7 +526,13 @@ try{
   });
 }
 
-async function onLogin(user,session){state.user=user;if(session)state.accessToken=session.access_token;await loadUserData();hideLoading();showApp();renderHome();populateCatSelect();}
+async function onLogin(user,session){
+  state.user=user;
+  if(session)state.accessToken=session.access_token;
+  await loadUserData();
+  await loadPlano(); // ← adicione esta linha
+  hideLoading();showApp();renderHome();populateCatSelect();
+}
 function showAuth(){hideLoading();document.getElementById('auth-screen').classList.add('active');document.getElementById('app-screen').classList.remove('active');}
 function showApp(){
   document.getElementById('auth-screen').classList.remove('active');document.getElementById('app-screen').classList.add('active');
@@ -531,7 +588,8 @@ function applyTheme(dark){state.dark=dark;document.documentElement.setAttribute(
 function toggleTheme(){applyTheme(!state.dark);destroyCharts();const a=document.querySelector('.screen.active');if(a&&a.id==='screen-report')refreshReport();}
 
 function showScreen(name,btn){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  if(name==='import'&&!isPremium()){openUpgradeModal();return;}
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');btn.classList.add('active');
   state.showAllTx=false;
@@ -1080,7 +1138,52 @@ async function deleteMonthTransactions(){
   renderHome();
   showToast(`✓ ${ids.length} transações apagadas!`);
 }
+// ─── PLANO / FREEMIUM ────────────────────────────────────────────────────────
+async function loadPlano(){
+  if(!state.user)return;
+  const{data}=await supa.from('profiles').select('plano,plano_expira_em').eq('id',state.user.id).single();
+  if(data){
+    const expirado=data.plano_expira_em&&new Date(data.plano_expira_em)<new Date();
+    state.plano=(data.plano==='premium'&&!expirado)?'premium':'gratuito';
+  }
+}
 
+function isPremium(){return state.plano==='premium';}
+
+function openUpgradeModal(){document.getElementById('upgrade-modal').classList.add('open');}
+function closeUpgradeModal(){document.getElementById('upgrade-modal').classList.remove('open');document.getElementById('pix-qr-area').style.display='none';}
+function handleUpgradeClick(e){if(e.target===document.getElementById('upgrade-modal'))closeUpgradeModal();}
+
+async function startSubscription(){
+  const btn=document.getElementById('btn-subscribe');btn.disabled=true;btn.textContent='Aguarde...';
+  try{
+    const res=await fetch('/api/create-subscription',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:state.user.id,userEmail:state.user.email})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error);
+    window.open(data.init_point,'_blank');
+    showToast('Abrindo pagamento...');
+  }catch(e){showToast('Erro: '+e.message);}
+  btn.disabled=false;btn.textContent='Assinar com cartão';
+}
+
+async function startPix(){
+  const btn=document.getElementById('btn-pix');btn.disabled=true;btn.textContent='Gerando Pix...';
+  try{
+    const name=state.user?.user_metadata?.name||'Usuário';
+    const res=await fetch('/api/create-pix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:state.user.id,userEmail:state.user.email,userName:name})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error);
+    document.getElementById('pix-qr-area').style.display='block';
+    if(data.qr_code_base64)document.getElementById('pix-qr-img').src='data:image/png;base64,'+data.qr_code_base64;
+    document.getElementById('pix-code-box').textContent=data.qr_code||'';
+    window._pixCode=data.qr_code||'';
+  }catch(e){showToast('Erro: '+e.message);}
+  btn.disabled=false;btn.textContent='Pagar com Pix';
+}
+
+function copyPix(){
+  if(window._pixCode){navigator.clipboard.writeText(window._pixCode);showToast('✓ Código Pix copiado!');}
+}
 init();
 </script>
 </body>
