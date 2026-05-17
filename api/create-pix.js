@@ -20,7 +20,12 @@ export default async function handler(req, res) {
         external_reference: userId,
         payer: {
           email: payerEmail,
-          first_name: userName || 'Usuário'
+          first_name: userName || 'Usuário',
+          last_name: 'Teste',
+          identification: {
+            type: 'CPF',
+            number: '19119119100'
+          }
         }
       })
     })
