@@ -3,7 +3,7 @@ export default async function handler(req, res) {
   const { userId, userEmail, userName } = req.body
 
   const isTest = process.env.MP_ACCESS_TOKEN?.includes('TEST')
-  const payerEmail = isTest ? 'test_user_4707981987223413452@testuser.com' : userEmail
+  const payerEmail = isTest ? 'test_user_3406336633@testuser.com' : userEmail
 
   try {
     const response = await fetch('https://api.mercadopago.com/v1/payments', {
