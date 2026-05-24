@@ -2,7 +2,7 @@
       "relation": ["delegate_permission/common.handle_all_urls"],
       "target": {
         "namespace": "android_app",
-        "package_name": "app.vercel.mapa_de_gastos.twa",
-        "sha256_cert_fingerprints": ["AB:28:DE:EA:A4:18:E0:AD:A4:8E:30:6B:E3:38:D4:89:C8:B6:D0:CB:5C:A6:50:62:9F:9B:25:99:2C:67:9D:37"]
+        "package_name": "com.mapadegastos.app",
+        "sha256_cert_fingerprints": ["36:3B:0D:E0:1D:04:CF:D3:59:DF:52:63:B1:F5:21:C4:65:0F:26:3E:C4:76:E9:A7:66:14:08:28:41:89:8D:F0"]
       }
     }]
